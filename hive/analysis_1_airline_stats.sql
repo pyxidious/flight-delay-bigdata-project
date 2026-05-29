@@ -42,40 +42,45 @@ INSERT OVERWRITE DIRECTORY '${hiveconf:output_dir}'
 ROW FORMAT DELIMITED
 FIELDS TERMINATED BY ','
 SELECT
-    total_stats.airline,
-    total_stats.origin,
-    total_stats.total_flights,
-    delay_stats.min_arr_delay,
-    delay_stats.max_arr_delay,
-    ROUND(delay_stats.avg_arr_delay, 4) AS avg_arr_delay,
-    total_stats.cancelled_flights,
-    ROUND(total_stats.cancelled_flights / total_stats.total_flights, 6) AS cancellation_rate,
-    total_stats.active_months
-FROM
-(
-    SELECT
-        airline,
-        origin,
-        COUNT(*) AS total_flights,
-        SUM(CAST(cancelled AS INT)) AS cancelled_flights,
-        CONCAT_WS(',', SORT_ARRAY(COLLECT_SET(CAST(CAST(month AS INT) AS STRING)))) AS active_months
-    FROM flights_clean_hive
-    GROUP BY airline, origin
-) total_stats
-LEFT JOIN
-(
-    SELECT
-        airline,
-        origin,
-        MIN(CAST(arr_delay AS DOUBLE)) AS min_arr_delay,
-        MAX(CAST(arr_delay AS DOUBLE)) AS max_arr_delay,
-        AVG(CAST(arr_delay AS DOUBLE)) AS avg_arr_delay
-    FROM flights_clean_hive
-    WHERE CAST(is_completed_flight AS INT) = 1
-      AND arr_delay IS NOT NULL
-      AND arr_delay != ''
-    GROUP BY airline, origin
-) delay_stats
-ON total_stats.airline = delay_stats.airline
-AND total_stats.origin = delay_stats.origin
-ORDER BY total_stats.airline, total_stats.origin;
+    airline,
+    origin,
+    COUNT(*) AS total_flights,
+    MIN(
+        CASE
+            WHEN CAST(is_completed_flight AS INT) = 1
+             AND arr_delay IS NOT NULL
+             AND arr_delay != ''
+            THEN CAST(arr_delay AS DOUBLE)
+            ELSE NULL
+        END
+    ) AS min_arr_delay,
+    MAX(
+        CASE
+            WHEN CAST(is_completed_flight AS INT) = 1
+             AND arr_delay IS NOT NULL
+             AND arr_delay != ''
+            THEN CAST(arr_delay AS DOUBLE)
+            ELSE NULL
+        END
+    ) AS max_arr_delay,
+    ROUND(
+        AVG(
+            CASE
+                WHEN CAST(is_completed_flight AS INT) = 1
+                 AND arr_delay IS NOT NULL
+                 AND arr_delay != ''
+                THEN CAST(arr_delay AS DOUBLE)
+                ELSE NULL
+            END
+        ),
+        4
+    ) AS avg_arr_delay,
+    SUM(CAST(cancelled AS INT)) AS cancelled_flights,
+    ROUND(SUM(CAST(cancelled AS INT)) / COUNT(*), 6) AS cancellation_rate,
+    CONCAT_WS(',', SORT_ARRAY(COLLECT_SET(CAST(CAST(month AS INT) AS STRING)))) AS active_months
+FROM flights_clean_hive
+WHERE airline != 'airline'
+  AND origin != 'origin'
+  AND month != 'month'
+GROUP BY airline, origin
+ORDER BY airline, origin;
