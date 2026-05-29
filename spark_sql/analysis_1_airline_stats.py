@@ -2,17 +2,12 @@ from pathlib import Path
 import argparse
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import (
-    col,
-    count,
-    min as spark_min,
-    max as spark_max,
-    avg,
-    sum as spark_sum,
-    collect_set,
-    sort_array,
-    round as spark_round,
-    concat_ws,
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    IntegerType,
+    DoubleType,
+    StringType,
 )
 
 
@@ -33,6 +28,39 @@ def parse_args():
     return parser.parse_args()
 
 
+def get_schema() -> StructType:
+    return StructType(
+        [
+            StructField("year", IntegerType(), True),
+            StructField("month", IntegerType(), True),
+            StructField("day_of_month", IntegerType(), True),
+            StructField("day_of_week", IntegerType(), True),
+            StructField("fl_date", StringType(), True),
+            StructField("airline", StringType(), True),
+            StructField("origin", StringType(), True),
+            StructField("origin_city_name", StringType(), True),
+            StructField("origin_state_nm", StringType(), True),
+            StructField("dest", StringType(), True),
+            StructField("dest_city_name", StringType(), True),
+            StructField("dest_state_nm", StringType(), True),
+            StructField("route", StringType(), True),
+            StructField("dep_delay", DoubleType(), True),
+            StructField("arr_delay", DoubleType(), True),
+            StructField("dep_delay_band", StringType(), True),
+            StructField("cancelled", IntegerType(), True),
+            StructField("cancellation_code", StringType(), True),
+            StructField("diverted", IntegerType(), True),
+            StructField("is_completed_flight", IntegerType(), True),
+            StructField("carrier_delay", DoubleType(), True),
+            StructField("weather_delay", DoubleType(), True),
+            StructField("nas_delay", DoubleType(), True),
+            StructField("security_delay", DoubleType(), True),
+            StructField("late_aircraft_delay", DoubleType(), True),
+            StructField("main_delay_cause", StringType(), True),
+        ]
+    )
+
+
 def main():
     args = parse_args()
 
@@ -44,56 +72,54 @@ def main():
         .getOrCreate()
     )
 
-    df = (
+    flights_df = (
         spark.read
         .option("header", "true")
-        .option("inferSchema", "true")
+        .schema(get_schema())
         .csv(args.input)
     )
 
-    completed = df.filter(col("is_completed_flight") == 1)
+    flights_df.createOrReplaceTempView("flights")
 
-    delay_stats = (
-        completed
-        .groupBy("airline", "origin")
-        .agg(
-            spark_min("arr_delay").alias("min_arr_delay"),
-            spark_max("arr_delay").alias("max_arr_delay"),
-            avg("arr_delay").alias("avg_arr_delay"),
+    result = spark.sql(
+        """
+        WITH total_stats AS (
+            SELECT
+                airline,
+                origin,
+                COUNT(*) AS total_flights,
+                SUM(cancelled) AS cancelled_flights,
+                CONCAT_WS(',', SORT_ARRAY(COLLECT_SET(CAST(month AS STRING)))) AS active_months
+            FROM flights
+            GROUP BY airline, origin
+        ),
+        delay_stats AS (
+            SELECT
+                airline,
+                origin,
+                MIN(arr_delay) AS min_arr_delay,
+                MAX(arr_delay) AS max_arr_delay,
+                AVG(arr_delay) AS avg_arr_delay
+            FROM flights
+            WHERE is_completed_flight = 1
+            GROUP BY airline, origin
         )
-    )
-
-    total_stats = (
-        df
-        .groupBy("airline", "origin")
-        .agg(
-            count("*").alias("total_flights"),
-            spark_sum("cancelled").alias("cancelled_flights"),
-            sort_array(collect_set("month")).alias("active_months"),
-        )
-    )
-
-    result = (
-        total_stats
-        .join(delay_stats, on=["airline", "origin"], how="left")
-        .withColumn(
-            "cancellation_rate",
-            spark_round(col("cancelled_flights") / col("total_flights"), 6),
-        )
-        .withColumn("avg_arr_delay", spark_round(col("avg_arr_delay"), 4))
-        .withColumn("active_months", concat_ws(",", col("active_months")))
-        .select(
-            "airline",
-            "origin",
-            "total_flights",
-            "min_arr_delay",
-            "max_arr_delay",
-            "avg_arr_delay",
-            "cancelled_flights",
-            "cancellation_rate",
-            "active_months",
-        )
-        .orderBy("airline", "origin")
+        SELECT
+            total_stats.airline,
+            total_stats.origin,
+            total_stats.total_flights,
+            delay_stats.min_arr_delay,
+            delay_stats.max_arr_delay,
+            ROUND(delay_stats.avg_arr_delay, 4) AS avg_arr_delay,
+            total_stats.cancelled_flights,
+            ROUND(total_stats.cancelled_flights / total_stats.total_flights, 6) AS cancellation_rate,
+            total_stats.active_months
+        FROM total_stats
+        LEFT JOIN delay_stats
+            ON total_stats.airline = delay_stats.airline
+           AND total_stats.origin = delay_stats.origin
+        ORDER BY total_stats.airline, total_stats.origin
+        """
     )
 
     (
