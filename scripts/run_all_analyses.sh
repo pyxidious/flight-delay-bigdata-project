@@ -11,6 +11,19 @@ cd "$PROJECT_ROOT"
 
 source scripts/project_env.sh
 
+JDBC_URL="jdbc:hive2://localhost:10000/default"
+HIVE_STARTED_BY_THIS_SCRIPT=0
+
+cleanup() {
+    if [ "$HIVE_STARTED_BY_THIS_SCRIPT" -eq 1 ]; then
+        echo
+        echo "Stopping HiveServer2 started by this script..."
+        bash scripts/stop_hiveserver2_local.sh
+    fi
+}
+
+trap cleanup EXIT
+
 echo "========================================"
 echo "Running all analyses"
 echo "Dataset label: $DATASET_LABEL"
@@ -23,6 +36,17 @@ if [ ! -f "$INPUT_FILE" ]; then
     exit 1
 fi
 
+echo "Checking HiveServer2 before running Hive analyses..."
+
+if beeline -u "$JDBC_URL" -e "SELECT 1;" >/dev/null 2>&1; then
+    echo "HiveServer2 is already running. It will not be stopped by this script."
+else
+    echo "HiveServer2 is not running. Starting it now..."
+    bash scripts/start_hiveserver2_local.sh
+    HIVE_STARTED_BY_THIS_SCRIPT=1
+fi
+
+echo
 echo "[1/6] Spark SQL Analysis 1"
 bash scripts/run_spark_sql_analysis_1.sh \
   "$INPUT_FILE" \
