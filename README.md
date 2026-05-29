@@ -125,6 +125,29 @@ PATH
 
 This avoids depending on the system-wide default Java version.
 
+## Environment check
+
+After setting up the Python environment and extracting the Big Data tools, run:
+
+```bash
+bash scripts/check_environment.sh
+
+This script verifies:
+
+Python and required Python dependencies;
+Java version used by the project;
+Spark availability;
+Hadoop availability;
+Hive availability;
+local dataset path.
+
+## Step 3.12 — Controllo Git
+
+Dopo aver creato lo script e aggiornato il README, esegui:
+
+```bash
+git status
+
 ## Reproducibility
 
 The repository includes:
