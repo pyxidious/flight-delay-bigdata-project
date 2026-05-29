@@ -2,21 +2,13 @@ from pathlib import Path
 import argparse
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import (
-    col,
-    count,
-    avg,
-    round as spark_round,
-    when,
-    concat,
-    concat_ws,
-    lit,
-    collect_list,
-    struct,
-    sort_array,
+from pyspark.sql.types import (
+    StructType,
+    StructField,
+    IntegerType,
+    DoubleType,
+    StringType,
 )
-from pyspark.sql.window import Window
-from pyspark.sql.functions import row_number
 
 
 def parse_args():
@@ -36,8 +28,42 @@ def parse_args():
     return parser.parse_args()
 
 
+def get_schema() -> StructType:
+    return StructType(
+        [
+            StructField("year", IntegerType(), True),
+            StructField("month", IntegerType(), True),
+            StructField("day_of_month", IntegerType(), True),
+            StructField("day_of_week", IntegerType(), True),
+            StructField("fl_date", StringType(), True),
+            StructField("airline", StringType(), True),
+            StructField("origin", StringType(), True),
+            StructField("origin_city_name", StringType(), True),
+            StructField("origin_state_nm", StringType(), True),
+            StructField("dest", StringType(), True),
+            StructField("dest_city_name", StringType(), True),
+            StructField("dest_state_nm", StringType(), True),
+            StructField("route", StringType(), True),
+            StructField("dep_delay", DoubleType(), True),
+            StructField("arr_delay", DoubleType(), True),
+            StructField("dep_delay_band", StringType(), True),
+            StructField("cancelled", IntegerType(), True),
+            StructField("cancellation_code", StringType(), True),
+            StructField("diverted", IntegerType(), True),
+            StructField("is_completed_flight", IntegerType(), True),
+            StructField("carrier_delay", DoubleType(), True),
+            StructField("weather_delay", DoubleType(), True),
+            StructField("nas_delay", DoubleType(), True),
+            StructField("security_delay", DoubleType(), True),
+            StructField("late_aircraft_delay", DoubleType(), True),
+            StructField("main_delay_cause", StringType(), True),
+        ]
+    )
+
+
 def main():
     args = parse_args()
+
     output_path = Path(args.output)
 
     spark = (
@@ -46,104 +72,108 @@ def main():
         .getOrCreate()
     )
 
-    df = (
+    flights_df = (
         spark.read
         .option("header", "true")
-        .option("inferSchema", "true")
+        .schema(get_schema())
         .csv(args.input)
     )
 
-    # We keep the "unknown" delay band out of this report because the assignment
-    # defines three explicit departure delay bands: low, medium and high.
-    base_df = df.filter(col("dep_delay_band").isin("low", "medium", "high"))
+    flights_df.createOrReplaceTempView("flights")
 
-    # Cause used for the top-3 report:
-    # - cancelled flights use cancellation_code;
-    # - delayed non-cancelled flights use main_delay_cause;
-    # - rows without available cause are marked explicitly.
-    caused_df = base_df.withColumn(
-        "event_cause",
-        when(
-            col("cancelled") == 1,
-            concat(lit("Cancellation_"), col("cancellation_code")),
-        ).when(
-            col("main_delay_cause") != "NoDelayCause",
-            concat(lit("Delay_"), col("main_delay_cause")),
-        ).otherwise(lit("NoCauseAvailable")),
-    )
-
-    metrics = (
-        caused_df
-        .groupBy("origin", "month", "dep_delay_band")
-        .agg(
-            count("*").alias("flight_count"),
-            spark_round(avg("dep_delay"), 4).alias("avg_dep_delay"),
-            spark_round(
-                avg(
-                    when(
-                        col("is_completed_flight") == 1,
-                        col("arr_delay"),
+    result = spark.sql(
+        """
+        WITH base AS (
+            SELECT *
+            FROM flights
+            WHERE dep_delay_band IN ('low', 'medium', 'high')
+        ),
+        caused AS (
+            SELECT
+                origin,
+                month,
+                dep_delay_band,
+                dep_delay,
+                arr_delay,
+                is_completed_flight,
+                CASE
+                    WHEN cancelled = 1 THEN CONCAT('Cancellation_', cancellation_code)
+                    WHEN main_delay_cause != 'NoDelayCause' THEN CONCAT('Delay_', main_delay_cause)
+                    ELSE 'NoCauseAvailable'
+                END AS event_cause
+            FROM base
+        ),
+        metrics AS (
+            SELECT
+                origin,
+                month,
+                dep_delay_band,
+                COUNT(*) AS flight_count,
+                ROUND(AVG(dep_delay), 4) AS avg_dep_delay,
+                ROUND(AVG(CASE WHEN is_completed_flight = 1 THEN arr_delay END), 4) AS avg_arr_delay
+            FROM caused
+            GROUP BY origin, month, dep_delay_band
+        ),
+        cause_counts AS (
+            SELECT
+                origin,
+                month,
+                dep_delay_band,
+                event_cause,
+                COUNT(*) AS cause_count
+            FROM caused
+            WHERE event_cause != 'NoCauseAvailable'
+            GROUP BY origin, month, dep_delay_band, event_cause
+        ),
+        ranked_causes AS (
+            SELECT
+                origin,
+                month,
+                dep_delay_band,
+                event_cause,
+                cause_count,
+                ROW_NUMBER() OVER (
+                    PARTITION BY origin, month, dep_delay_band
+                    ORDER BY cause_count DESC, event_cause ASC
+                ) AS cause_rank
+            FROM cause_counts
+        ),
+        top_causes AS (
+            SELECT
+                origin,
+                month,
+                dep_delay_band,
+                CONCAT_WS(
+                    '; ',
+                    COLLECT_LIST(
+                        CONCAT(
+                            CAST(cause_rank AS STRING),
+                            ':',
+                            event_cause,
+                            '=',
+                            CAST(cause_count AS STRING)
+                        )
                     )
-                ),
-                4,
-            ).alias("avg_arr_delay"),
+                ) AS top_3_causes
+            FROM ranked_causes
+            WHERE cause_rank <= 3
+            GROUP BY origin, month, dep_delay_band
         )
-    )
-
-    cause_counts = (
-        caused_df
-        .filter(col("event_cause") != "NoCauseAvailable")
-        .groupBy("origin", "month", "dep_delay_band", "event_cause")
-        .agg(count("*").alias("cause_count"))
-    )
-
-    window_spec = (
-        Window
-        .partitionBy("origin", "month", "dep_delay_band")
-        .orderBy(col("cause_count").desc(), col("event_cause").asc())
-    )
-
-    top_causes_ranked = (
-        cause_counts
-        .withColumn("cause_rank", row_number().over(window_spec))
-        .filter(col("cause_rank") <= 3)
-        .withColumn(
-            "cause_entry",
-            concat(
-                col("cause_rank").cast("string"),
-                lit(":"),
-                col("event_cause"),
-                lit("="),
-                col("cause_count").cast("string"),
-            ),
-        )
-    )
-
-    top_causes = (
-        top_causes_ranked
-        .groupBy("origin", "month", "dep_delay_band")
-        .agg(
-            concat_ws(
-                "; ",
-                collect_list("cause_entry"),
-            ).alias("top_3_causes")
-        )
-    )
-
-    result = (
-        metrics
-        .join(top_causes, on=["origin", "month", "dep_delay_band"], how="left")
-        .fillna({"top_3_causes": "NoCauseAvailable"})
-        .select(
-            "origin",
-            "month",
-            "dep_delay_band",
-            "flight_count",
-            "avg_dep_delay",
-            "avg_arr_delay",
-            "top_3_causes",
-        )
-        .orderBy("origin", "month", "dep_delay_band")
+        SELECT
+            metrics.origin,
+            metrics.month,
+            metrics.dep_delay_band,
+            metrics.flight_count,
+            metrics.avg_dep_delay,
+            metrics.avg_arr_delay,
+            COALESCE(top_causes.top_3_causes, 'NoCauseAvailable') AS top_3_causes
+        FROM metrics
+        LEFT JOIN top_causes
+            ON metrics.origin = top_causes.origin
+           AND metrics.month = top_causes.month
+           AND metrics.dep_delay_band = top_causes.dep_delay_band
+        ORDER BY metrics.origin, metrics.month, metrics.dep_delay_band
+        """
     )
 
     (
@@ -158,6 +188,7 @@ def main():
     print("Spark SQL Analysis 2 completed.")
     print(f"Input: {args.input}")
     print(f"Output: {args.output}")
+
     print("First 10 rows:")
     result.show(10, truncate=False)
 
