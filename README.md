@@ -141,13 +141,6 @@ Hadoop availability;
 Hive availability;
 local dataset path.
 
-## Step 3.12 — Controllo Git
-
-Dopo aver creato lo script e aggiornato il README, esegui:
-
-```bash
-git status
-
 ## Reproducibility
 
 The repository includes:
