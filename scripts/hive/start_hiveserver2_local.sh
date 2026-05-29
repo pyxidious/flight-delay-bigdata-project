@@ -2,13 +2,15 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
-source scripts/project_env.sh
+source scripts/env/project_env.sh
 
 export HIVE_CONF_DIR="$PROJECT_ROOT/hive/conf"
+export HADOOP_HEAPSIZE=2048
+export HADOOP_CLIENT_OPTS="${HADOOP_CLIENT_OPTS:-} -Xmx2048m"
 
 PID_FILE="results/tmp/hive/hiveserver2.pid"
 LOG_FILE="results/tmp/hive/logs/hiveserver2.log"

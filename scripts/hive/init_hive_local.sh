@@ -2,11 +2,11 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
-source scripts/project_env.sh
+source scripts/env/project_env.sh
 
 export HIVE_HOME="$HOME/bigdata-tools/apache-hive-4.0.1-bin"
 export HIVE_CONF_DIR="$PROJECT_ROOT/hive/conf"

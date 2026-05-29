@@ -160,7 +160,7 @@ Expected paths:
 Before running Spark, Hadoop or Hive commands, load the project environment:
 
 ```bash
-source scripts/project_env.sh
+source scripts/env/project_env.sh
 ```
 
 The project environment file sets:
@@ -191,7 +191,7 @@ hive --version
 After setting up the Python environment and extracting the Big Data tools, run:
 
 ```bash
-bash scripts/check_environment.sh
+bash scripts/env/check_environment.sh
 ```
 
 This script verifies:
@@ -211,7 +211,7 @@ This script verifies:
 Inspect the raw dataset:
 
 ```bash
-python scripts/inspect_dataset.py
+python scripts/data/inspect_dataset.py
 ```
 
 The inspection report is saved to:
@@ -235,7 +235,7 @@ The report includes:
 Prepare the cleaned dataset:
 
 ```bash
-python scripts/prepare_data.py
+python scripts/data/prepare_data.py
 ```
 
 Generated files:
@@ -261,7 +261,7 @@ The cleaning step:
 Validate the cleaned dataset:
 
 ```bash
-python scripts/validate_cleaned_data.py
+python scripts/data/validate_cleaned_data.py
 ```
 
 Validation report:
@@ -275,7 +275,7 @@ docs/cleaned_data_validation.md
 Generate benchmark samples:
 
 ```bash
-bash scripts/generate_samples.sh
+bash scripts/data/generate_samples.sh
 ```
 
 Generated files:
@@ -345,7 +345,7 @@ top_3_causes
 Analysis 1:
 
 ```bash
-bash scripts/run_spark_sql_analysis_1.sh \
+bash scripts/run/run_spark_sql_analysis_1.sh \
   data/samples/flights_100k.csv \
   results/output/spark_sql/analysis_1_100k \
   results/tables/spark_sql_analysis_1_100k_preview.csv
@@ -354,7 +354,7 @@ bash scripts/run_spark_sql_analysis_1.sh \
 Analysis 2:
 
 ```bash
-bash scripts/run_spark_sql_analysis_2.sh \
+bash scripts/run/run_spark_sql_analysis_2.sh \
   data/samples/flights_100k.csv \
   results/output/spark_sql/analysis_2_100k \
   results/tables/spark_sql_analysis_2_100k_preview.csv
@@ -365,7 +365,7 @@ bash scripts/run_spark_sql_analysis_2.sh \
 Analysis 1:
 
 ```bash
-bash scripts/run_spark_core_analysis_1.sh \
+bash scripts/run/run_spark_core_analysis_1.sh \
   data/samples/flights_100k.csv \
   results/output/spark_core/analysis_1_100k \
   results/tables/spark_core_analysis_1_100k_preview.csv
@@ -374,7 +374,7 @@ bash scripts/run_spark_core_analysis_1.sh \
 Analysis 2:
 
 ```bash
-bash scripts/run_spark_core_analysis_2.sh \
+bash scripts/run/run_spark_core_analysis_2.sh \
   data/samples/flights_100k.csv \
   results/output/spark_core/analysis_2_100k \
   results/tables/spark_core_analysis_2_100k_preview.csv
@@ -385,19 +385,19 @@ bash scripts/run_spark_core_analysis_2.sh \
 Initialize Hive local configuration:
 
 ```bash
-bash scripts/init_hive_local.sh
+bash scripts/hive/init_hive_local.sh
 ```
 
 Start HiveServer2:
 
 ```bash
-bash scripts/start_hiveserver2_local.sh
+bash scripts/hive/start_hiveserver2_local.sh
 ```
 
 Analysis 1:
 
 ```bash
-bash scripts/run_hive_analysis_1.sh \
+bash scripts/run/run_hive_analysis_1.sh \
   data/samples/flights_100k.csv \
   results/output/hive/analysis_1_100k \
   results/tables/hive_analysis_1_100k_preview.csv
@@ -406,7 +406,7 @@ bash scripts/run_hive_analysis_1.sh \
 Analysis 2:
 
 ```bash
-bash scripts/run_hive_analysis_2.sh \
+bash scripts/run/run_hive_analysis_2.sh \
   data/samples/flights_100k.csv \
   results/output/hive/analysis_2_100k \
   results/tables/hive_analysis_2_100k_preview.csv
@@ -415,7 +415,7 @@ bash scripts/run_hive_analysis_2.sh \
 Stop HiveServer2:
 
 ```bash
-bash scripts/stop_hiveserver2_local.sh
+bash scripts/hive/stop_hiveserver2_local.sh
 ```
 
 ## Running all analyses
@@ -423,7 +423,7 @@ bash scripts/stop_hiveserver2_local.sh
 Run all implemented analyses on a selected dataset:
 
 ```bash
-bash scripts/run_all_analyses.sh 100k data/samples/flights_100k.csv
+bash scripts/run/run_all_analyses.sh 100k data/samples/flights_100k.csv
 ```
 
 The script runs:
@@ -464,14 +464,14 @@ These files are versioned because they are useful for documentation and for the 
 Spark SQL and Spark Core outputs are compared with:
 
 ```bash
-python scripts/compare_analysis_1_outputs.py \
+python scripts/compare/compare_analysis_1_outputs.py \
   --spark-sql-output results/output/spark_sql/analysis_1_100k \
   --spark-core-output results/output/spark_core/analysis_1_100k \
   --report docs/analysis_1_output_comparison.md
 ```
 
 ```bash
-python scripts/compare_analysis_2_outputs.py \
+python scripts/compare/compare_analysis_2_outputs.py \
   --spark-sql-output results/output/spark_sql/analysis_2_100k \
   --spark-core-output results/output/spark_core/analysis_2_100k \
   --report docs/analysis_2_output_comparison.md
@@ -480,14 +480,14 @@ python scripts/compare_analysis_2_outputs.py \
 Hive and Spark SQL outputs are compared with:
 
 ```bash
-python scripts/compare_analysis_1_hive_spark_sql.py \
+python scripts/compare/compare_analysis_1_hive_spark_sql.py \
   --spark-sql-output results/output/spark_sql/analysis_1_100k \
   --hive-output results/output/hive/analysis_1_100k \
   --report docs/analysis_1_hive_spark_sql_comparison.md
 ```
 
 ```bash
-python scripts/compare_analysis_2_hive_spark_sql.py \
+python scripts/compare/compare_analysis_2_hive_spark_sql.py \
   --spark-sql-output results/output/spark_sql/analysis_2_100k \
   --hive-output results/output/hive/analysis_2_100k \
   --report docs/analysis_2_hive_spark_sql_comparison.md
@@ -500,7 +500,7 @@ The comparisons use a small floating-point tolerance to account for minor numeri
 The repository includes:
 
 - fixed Python dependencies in `requirements.txt`;
-- project environment setup in `scripts/project_env.sh`;
+- project environment setup in `scripts/env/project_env.sh`;
 - environment verification script;
 - data inspection script;
 - data preparation script;

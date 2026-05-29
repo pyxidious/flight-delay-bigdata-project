@@ -8,7 +8,7 @@ echo "Environment check"
 echo "========================================"
 echo
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
@@ -17,11 +17,11 @@ echo "PROJECT_ROOT=$PROJECT_ROOT"
 echo
 
 echo "[2/7] Loading project environment"
-if [ -f "scripts/project_env.sh" ]; then
-    source scripts/project_env.sh
-    echo "Loaded scripts/project_env.sh"
+if [ -f "scripts/env/project_env.sh" ]; then
+    source scripts/env/project_env.sh
+    echo "Loaded scripts/env/project_env.sh"
 else
-    echo "ERROR: scripts/project_env.sh not found"
+    echo "ERROR: scripts/env/project_env.sh not found"
     exit 1
 fi
 echo

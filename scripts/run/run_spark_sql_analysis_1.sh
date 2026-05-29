@@ -6,11 +6,11 @@ INPUT_PATH="${1:-data/samples/flights_100k.csv}"
 OUTPUT_PATH="${2:-results/output/spark_sql/analysis_1}"
 PREVIEW_PATH="${3:-results/tables/spark_sql_analysis_1_preview.csv}"
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
-source scripts/project_env.sh
+source scripts/env/project_env.sh
 
 mkdir -p "$(dirname "$PREVIEW_PATH")"
 
