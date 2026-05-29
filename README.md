@@ -11,7 +11,7 @@ The dataset is not included in this repository because of its size.
 Expected local path:
 
 ```text
-data/raw/flights_2024.csv
+data/raw/flight_data_2024.csv
 ```
 
 ## Technologies
