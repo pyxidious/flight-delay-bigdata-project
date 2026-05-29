@@ -75,6 +75,56 @@ Verify the environment:
 python -c "import pandas, numpy, matplotlib, pyarrow, pyspark; print('Environment OK')"
 ```
 
+## Big Data tools setup
+
+This project uses the following local Big Data tools:
+
+- Apache Spark 3.5.3
+- Apache Hadoop 3.3.6
+- Apache Hive 4.0.1
+- OpenJDK 11
+
+The tools are expected to be extracted under:
+
+```text
+~/bigdata-tools/
+```
+
+Expected paths:
+
+```text
+~/bigdata-tools/spark-3.5.3-bin-hadoop3
+~/bigdata-tools/hadoop-3.3.6
+~/bigdata-tools/apache-hive-4.0.1-bin
+```
+
+Before running Spark, Hadoop or Hive commands, load the project environment:
+
+```bash
+source scripts/project_env.sh
+```
+
+Verify the setup:
+
+```bash
+java -version
+spark-submit --version
+hadoop version
+hive --version
+```
+
+The project environment file sets:
+
+```text
+JAVA_HOME
+SPARK_HOME
+HADOOP_HOME
+HIVE_HOME
+PATH
+```
+
+This avoids depending on the system-wide default Java version.
+
 ## Reproducibility
 
 The repository includes:
