@@ -40,3 +40,8 @@ Thumbs.db
 # IDE/editor
 .vscode/
 .idea/
+
+# Hive local runtime files
+hive/metastore_db/
+hive/warehouse/
+hive/conf/
