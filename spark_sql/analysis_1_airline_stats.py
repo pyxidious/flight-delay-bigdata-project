@@ -2,14 +2,7 @@ from pathlib import Path
 import argparse
 
 from pyspark.sql import SparkSession
-from pyspark.sql.types import (
-    StructType,
-    StructField,
-    IntegerType,
-    DoubleType,
-    StringType,
-)
-
+from common_schema import get_flights_schema
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -28,37 +21,6 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_schema() -> StructType:
-    return StructType(
-        [
-            StructField("year", IntegerType(), True),
-            StructField("month", IntegerType(), True),
-            StructField("day_of_month", IntegerType(), True),
-            StructField("day_of_week", IntegerType(), True),
-            StructField("fl_date", StringType(), True),
-            StructField("airline", StringType(), True),
-            StructField("origin", StringType(), True),
-            StructField("origin_city_name", StringType(), True),
-            StructField("origin_state_nm", StringType(), True),
-            StructField("dest", StringType(), True),
-            StructField("dest_city_name", StringType(), True),
-            StructField("dest_state_nm", StringType(), True),
-            StructField("route", StringType(), True),
-            StructField("dep_delay", DoubleType(), True),
-            StructField("arr_delay", DoubleType(), True),
-            StructField("dep_delay_band", StringType(), True),
-            StructField("cancelled", IntegerType(), True),
-            StructField("cancellation_code", StringType(), True),
-            StructField("diverted", IntegerType(), True),
-            StructField("is_completed_flight", IntegerType(), True),
-            StructField("carrier_delay", DoubleType(), True),
-            StructField("weather_delay", DoubleType(), True),
-            StructField("nas_delay", DoubleType(), True),
-            StructField("security_delay", DoubleType(), True),
-            StructField("late_aircraft_delay", DoubleType(), True),
-            StructField("main_delay_cause", StringType(), True),
-        ]
-    )
 
 
 def main():
@@ -75,7 +37,7 @@ def main():
     flights_df = (
         spark.read
         .option("header", "true")
-        .schema(get_schema())
+        .schema(get_flights_schema())
         .csv(args.input)
     )
 
