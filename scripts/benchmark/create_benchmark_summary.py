@@ -8,7 +8,7 @@ INPUT_PATH = Path("results/benchmarks/benchmark_results.csv")
 OUTPUT_DIR = Path("results/benchmarks")
 DOCS_DIR = Path("docs")
 
-DATASET_ORDER = ["100k", "500k", "1m", "3m", "7m", "14m"]
+DATASET_ORDER = ["100k", "500k", "1m", "3m", "7m", "10m", "14m"]
 TECHNOLOGY_ORDER = ["spark_sql", "spark_core", "hive"]
 
 
@@ -143,6 +143,7 @@ def write_markdown_summary(
         "| 1m | First 1,000,000 rows of the cleaned dataset |",
         "| 3m | First 3,000,000 rows of the cleaned dataset |",
         "| 7m | Full cleaned dataset |",
+        "| 10m | Full cleaned dataset plus partial controlled replication up to 10,000,000 rows |",
         "| 14m | Full cleaned dataset replicated 2 times |",
         "",
         "## Analysis 1 results",
