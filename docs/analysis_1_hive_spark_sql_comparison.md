@@ -2,7 +2,7 @@
 
 ## Compared outputs
 
-- Spark SQL output: `results/output/spark_sql/analysis_1_100k/part-00000-278e18b4-0ec5-46ee-b421-553867cb3396-c000.csv`
+- Spark SQL output: `results/output/spark_sql/analysis_1_100k/part-00000-37a19390-359a-4735-b0e7-a69f79450fda-c000.csv`
 - Hive output: `results/output/hive/analysis_1_100k/000000_0`
 
 ## Comparison policy

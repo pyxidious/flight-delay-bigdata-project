@@ -2,7 +2,7 @@
 
 ## Compared outputs
 
-- Spark SQL output: `results/output/spark_sql/analysis_1_100k/part-00000-dffa6554-f736-4d0b-92ee-60ee799b15b4-c000.csv`
+- Spark SQL output: `results/output/spark_sql/analysis_1_100k/part-00000-37a19390-359a-4735-b0e7-a69f79450fda-c000.csv`
 - Spark Core output: `results/output/spark_core/analysis_1_100k/part-00000`
 
 ## Comparison policy
