@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+cd "$PROJECT_ROOT"
+
 PID_FILE="results/tmp/hive/hiveserver2.pid"
 PROCESS_PATTERN="org.apache.hive.service.server.HiveServer2"
 

@@ -12,4 +12,7 @@ export SPARK_HOME="$BIGDATA_TOOLS_HOME/spark-3.5.3-bin-hadoop3"
 export HADOOP_HOME="$BIGDATA_TOOLS_HOME/hadoop-3.3.6"
 export HIVE_HOME="$BIGDATA_TOOLS_HOME/apache-hive-4.0.1-bin"
 
+# Hive 4 treats any non-empty DEBUG value as a request to suspend for JDWP.
+unset DEBUG
+
 export PATH="$JAVA_HOME/bin:$SPARK_HOME/bin:$SPARK_HOME/sbin:$HADOOP_HOME/bin:$HADOOP_HOME/sbin:$HIVE_HOME/bin:$PATH"

@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+cd "$PROJECT_ROOT"
+
 INPUT_FILE="data/cleaned/flights_clean.csv"
 OUTPUT_DIR="data/samples"
 
@@ -9,7 +13,7 @@ mkdir -p "$OUTPUT_DIR"
 
 if [ ! -f "$INPUT_FILE" ]; then
     echo "ERROR: cleaned dataset not found at $INPUT_FILE"
-    echo "Run: python scripts/prepare_data.py"
+    echo "Run: python scripts/data/prepare_data.py"
     exit 1
 fi
 

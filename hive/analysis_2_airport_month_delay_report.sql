@@ -1,3 +1,11 @@
+SET mapreduce.map.memory.mb=6144;
+SET mapreduce.reduce.memory.mb=6144;
+SET mapreduce.map.java.opts=-Xmx4915m;
+SET mapreduce.reduce.java.opts=-Xmx4915m;
+SET hive.mapred.local.mem=6144;
+SET hive.auto.convert.join=false;
+SET hive.exec.parallel=false;
+
 DROP TABLE IF EXISTS flights_clean_hive;
 
 CREATE EXTERNAL TABLE flights_clean_hive (
@@ -41,7 +49,10 @@ TBLPROPERTIES ("skip.header.line.count"="1");
 WITH base AS (
     SELECT *
     FROM flights_clean_hive
-    WHERE dep_delay_band IN ('low', 'medium', 'high')
+    WHERE origin != 'origin'
+      AND month != 'month'
+      AND dep_delay_band != 'dep_delay_band'
+      AND dep_delay_band IN ('low', 'medium', 'high')
 ),
 caused AS (
     SELECT

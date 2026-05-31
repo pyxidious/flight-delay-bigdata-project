@@ -45,3 +45,6 @@ Thumbs.db
 hive/metastore_db/
 hive/warehouse/
 hive/conf/
+spark-warehouse/
+.derby/
+metastore_db/

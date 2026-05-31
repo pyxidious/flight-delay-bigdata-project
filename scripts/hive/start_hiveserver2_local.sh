@@ -9,8 +9,10 @@ cd "$PROJECT_ROOT"
 source scripts/env/project_env.sh
 
 export HIVE_CONF_DIR="$PROJECT_ROOT/hive/conf"
-export HADOOP_HEAPSIZE=2048
-export HADOOP_CLIENT_OPTS="${HADOOP_CLIENT_OPTS:-} -Xmx2048m"
+export HADOOP_HEAPSIZE=6144
+export HADOOP_CLIENT_OPTS="-Xmx6144m ${HADOOP_CLIENT_OPTS:-}"
+# Hive 4 forwards HIVE_OPTS to HiveServer2 as application arguments.
+export HIVE_SERVER2_HEAPSIZE=6144
 
 PID_FILE="results/tmp/hive/hiveserver2.pid"
 LOG_FILE="results/tmp/hive/logs/hiveserver2.log"
