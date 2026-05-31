@@ -14,6 +14,10 @@ source scripts/env/project_env.sh
 
 export HIVE_CONF_DIR="$PROJECT_ROOT/hive/conf"
 
+export HADOOP_HEAPSIZE=2048
+export HADOOP_CLIENT_OPTS="-Xmx2048m ${HADOOP_CLIENT_OPTS:-}"
+export HIVE_OPTS="-Xmx2048m ${HIVE_OPTS:-}"
+
 INPUT_DIR="$PROJECT_ROOT/results/tmp/hive_input/analysis_2_input"
 
 mkdir -p "$INPUT_DIR"
