@@ -1,4 +1,3 @@
-from pathlib import Path
 import argparse
 
 from pyspark.sql import SparkSession
@@ -24,7 +23,7 @@ def parse_args():
 def main():
     args = parse_args()
 
-    output_path = Path(args.output)
+    output_path = args.output
 
     spark = (
         SparkSession.builder
@@ -142,7 +141,7 @@ def main():
         .write
         .mode("overwrite")
         .option("header", "true")
-        .csv(str(output_path))
+        .csv(output_path)
     )
 
     print("Spark SQL Analysis 2 completed.")

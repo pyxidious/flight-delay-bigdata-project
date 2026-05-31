@@ -63,6 +63,11 @@ cat > "$HIVE_CONF_DIR/hive-site.xml" <<EOF
     <name>hive.server2.enable.doAs</name>
     <value>false</value>
   </property>
+
+  <property>
+    <name>hive.query.results.cache.enabled</name>
+    <value>false</value>
+  </property>
 </configuration>
 EOF
 

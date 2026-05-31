@@ -176,10 +176,11 @@ def main():
         result.map(format_csv_row)
     )
 
-    output_path = Path(args.output)
-    if output_path.exists():
-        import shutil
-        shutil.rmtree(output_path)
+    if "://" not in args.output:
+        output_path = Path(args.output)
+        if output_path.exists():
+            import shutil
+            shutil.rmtree(output_path)
 
     output_rdd.coalesce(1).saveAsTextFile(args.output)
 

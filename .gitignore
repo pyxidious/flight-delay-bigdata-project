@@ -48,3 +48,7 @@ hive/conf/
 spark-warehouse/
 .derby/
 metastore_db/
+
+# Hadoop local runtime files
+hadoop/hdfs/
+hadoop/logs/
