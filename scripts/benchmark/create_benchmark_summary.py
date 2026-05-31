@@ -1,4 +1,5 @@
 from pathlib import Path
+import warnings
 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -10,6 +11,11 @@ DOCS_DIR = Path("docs")
 
 DATASET_ORDER = ["100k", "500k", "1m", "3m", "7m", "10m", "14m"]
 TECHNOLOGY_ORDER = ["spark_sql", "spark_core", "hive"]
+
+
+def find_missing_datasets(df: pd.DataFrame) -> list[str]:
+    present_datasets = set(df["dataset_label"].dropna().astype(str))
+    return [label for label in DATASET_ORDER if label not in present_datasets]
 
 
 def load_benchmark_results() -> pd.DataFrame:
@@ -30,6 +36,16 @@ def load_benchmark_results() -> pd.DataFrame:
 
     if missing_columns:
         raise ValueError(f"Missing required columns: {sorted(missing_columns)}")
+
+    missing_datasets = find_missing_datasets(df)
+
+    if missing_datasets:
+        warnings.warn(
+            "Missing benchmark datasets: "
+            + ", ".join(missing_datasets)
+            + ". Completely empty rows will be omitted from the generated summary.",
+            stacklevel=2,
+        )
 
     df["dataset_label"] = pd.Categorical(
         df["dataset_label"],
@@ -60,6 +76,7 @@ def create_pivot(df: pd.DataFrame, analysis: str) -> pd.DataFrame:
 
     pivot = pivot.reindex(DATASET_ORDER)
     pivot = pivot[TECHNOLOGY_ORDER]
+    pivot = pivot.dropna(how="all")
     pivot = pivot.round(4)
 
     return pivot
@@ -119,8 +136,6 @@ def write_markdown_summary(
 
     summary_path = DOCS_DIR / "benchmark_summary.md"
 
-    max_dataset = df["dataset_label"].dropna().max()
-
     lines = [
         "# Benchmark Summary",
         "",
@@ -132,7 +147,7 @@ def write_markdown_summary(
         "- Spark Core",
         "- Hive",
         "",
-        "The benchmark includes both natural samples of increasing size and a replicated dataset.",
+        "The benchmark includes both natural samples of increasing size and controlled replicated datasets.",
         "",
         "## Dataset sizes",
         "",
@@ -145,6 +160,14 @@ def write_markdown_summary(
         "| 7m | Full cleaned dataset |",
         "| 10m | Full cleaned dataset plus partial controlled replication up to 10,000,000 rows |",
         "| 14m | Full cleaned dataset replicated 2 times |",
+        "",
+        "## Methodological notes",
+        "",
+        "- Benchmarks were executed on a local machine.",
+        "- Absolute execution times depend on the available hardware.",
+        "- The main focus is the relative scaling trend across technologies.",
+        "- Hive uses HiveServer2 and local Hadoop/MapReduce execution.",
+        "- The 10m and 14m datasets are generated with controlled replication.",
         "",
         "## Analysis 1 results",
         "",
