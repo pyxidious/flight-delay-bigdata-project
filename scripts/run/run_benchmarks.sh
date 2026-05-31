@@ -131,6 +131,7 @@ run_dataset_benchmarks "500k" "data/samples/flights_500k.csv"
 run_dataset_benchmarks "1m" "data/samples/flights_1m.csv"
 run_dataset_benchmarks "3m" "data/samples/flights_3m.csv"
 run_dataset_benchmarks "7m" "data/samples/flights_7m.csv"
+run_dataset_benchmarks "14m" "data/samples/flights_14m.csv"
 
 echo
 echo "Benchmark completed."
