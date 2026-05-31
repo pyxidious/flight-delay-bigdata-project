@@ -1,0 +1,13 @@
+analysis,dataset_label,fastest_technology,fastest_seconds,slowest_technology,slowest_seconds,speedup_vs_slowest
+analysis_1,100k,hive,6.2415,spark_sql,10.3009,1.6504
+analysis_1,500k,hive,6.0467,spark_sql,12.7241,2.1043
+analysis_1,1m,hive,8.0841,spark_sql,14.6874,1.8168
+analysis_1,3m,spark_core,14.9266,spark_sql,23.7142,1.5887
+analysis_1,7m,spark_core,24.1425,hive,40.242,1.6669
+analysis_1,14m,spark_core,48.0775,hive,114.7999,2.3878
+analysis_2,100k,spark_core,7.7875,spark_sql,11.2097,1.4394
+analysis_2,500k,spark_core,9.2573,hive,16.879,1.8233
+analysis_2,1m,spark_core,10.4261,hive,20.8591,2.0007
+analysis_2,3m,spark_core,15.6262,hive,41.0528,2.6272
+analysis_2,7m,spark_sql,19.8396,hive,90.2658,4.5498
+analysis_2,14m,spark_sql,38.3424,hive,276.2024,7.2036
