@@ -79,13 +79,11 @@ def main():
         LEFT JOIN delay_stats
             ON total_stats.airline = delay_stats.airline
            AND total_stats.origin = delay_stats.origin
-        ORDER BY total_stats.airline, total_stats.origin
         """
     )
 
     (
         result
-        .coalesce(1)
         .write
         .mode("overwrite")
         .option("header", "true")
@@ -95,9 +93,6 @@ def main():
     print("Spark SQL Analysis 1 completed.")
     print(f"Input: {args.input}")
     print(f"Output: {args.output}")
-
-    print("First 10 rows:")
-    result.show(10, truncate=False)
 
     spark.stop()
 

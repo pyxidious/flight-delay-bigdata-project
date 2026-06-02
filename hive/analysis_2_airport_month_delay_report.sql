@@ -6,55 +6,7 @@ SET hive.mapred.local.mem=6144;
 SET hive.auto.convert.join=false;
 SET hive.exec.parallel=false;
 
-DROP TABLE IF EXISTS flights_clean_hive;
-
-CREATE EXTERNAL TABLE flights_clean_hive (
-    year STRING,
-    month STRING,
-    day_of_month STRING,
-    day_of_week STRING,
-    fl_date STRING,
-    airline STRING,
-    origin STRING,
-    origin_city_name STRING,
-    origin_state_nm STRING,
-    dest STRING,
-    dest_city_name STRING,
-    dest_state_nm STRING,
-    route STRING,
-    dep_delay STRING,
-    arr_delay STRING,
-    dep_delay_band STRING,
-    cancelled STRING,
-    cancellation_code STRING,
-    diverted STRING,
-    is_completed_flight STRING,
-    carrier_delay STRING,
-    weather_delay STRING,
-    nas_delay STRING,
-    security_delay STRING,
-    late_aircraft_delay STRING,
-    main_delay_cause STRING
-)
-ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.OpenCSVSerde'
-WITH SERDEPROPERTIES (
-    "separatorChar" = ",",
-    "quoteChar" = "\"",
-    "escapeChar" = "\\"
-)
-STORED AS TEXTFILE
-LOCATION '${hiveconf:input_dir}'
-TBLPROPERTIES ("skip.header.line.count"="1");
-
-WITH base AS (
-    SELECT *
-    FROM flights_clean_hive
-    WHERE origin != 'origin'
-      AND month != 'month'
-      AND dep_delay_band != 'dep_delay_band'
-      AND dep_delay_band IN ('low', 'medium', 'high')
-),
-caused AS (
+WITH caused AS (
     SELECT
         origin,
         CAST(month AS INT) AS month,
@@ -67,78 +19,113 @@ caused AS (
             WHEN main_delay_cause != 'NoDelayCause' THEN CONCAT('Delay_', main_delay_cause)
             ELSE 'NoCauseAvailable'
         END AS event_cause
-    FROM base
+    FROM flights_hive
+    WHERE origin != 'origin'
+      AND month != 'month'
+      AND dep_delay_band != 'dep_delay_band'
+      AND dep_delay_band IN ('low', 'medium', 'high')
 ),
-metrics AS (
-    SELECT
-        origin,
-        month,
-        dep_delay_band,
-        COUNT(*) AS flight_count,
-        ROUND(AVG(dep_delay), 4) AS avg_dep_delay,
-        ROUND(AVG(CASE WHEN is_completed_flight = 1 THEN arr_delay ELSE NULL END), 4) AS avg_arr_delay
-    FROM caused
-    GROUP BY origin, month, dep_delay_band
-),
-cause_counts AS (
+cause_metrics AS (
     SELECT
         origin,
         month,
         dep_delay_band,
         event_cause,
-        COUNT(*) AS cause_count
+        COUNT(*) AS cause_flight_count,
+        SUM(dep_delay) AS dep_delay_sum,
+        COUNT(dep_delay) AS dep_delay_count,
+        SUM(CASE WHEN is_completed_flight = 1 THEN arr_delay ELSE NULL END) AS arr_delay_sum,
+        COUNT(CASE WHEN is_completed_flight = 1 THEN arr_delay ELSE NULL END) AS arr_delay_count
     FROM caused
-    WHERE event_cause != 'NoCauseAvailable'
     GROUP BY origin, month, dep_delay_band, event_cause
 ),
-ranked_causes AS (
+ranked AS (
     SELECT
         origin,
         month,
         dep_delay_band,
         event_cause,
-        cause_count,
+        cause_flight_count,
+        SUM(cause_flight_count) OVER (
+            PARTITION BY origin, month, dep_delay_band
+        ) AS flight_count,
+        SUM(dep_delay_sum) OVER (
+            PARTITION BY origin, month, dep_delay_band
+        ) AS dep_delay_sum,
+        SUM(dep_delay_count) OVER (
+            PARTITION BY origin, month, dep_delay_band
+        ) AS dep_delay_count,
+        SUM(arr_delay_sum) OVER (
+            PARTITION BY origin, month, dep_delay_band
+        ) AS arr_delay_sum,
+        SUM(arr_delay_count) OVER (
+            PARTITION BY origin, month, dep_delay_band
+        ) AS arr_delay_count,
         ROW_NUMBER() OVER (
             PARTITION BY origin, month, dep_delay_band
-            ORDER BY cause_count DESC, event_cause ASC
+            ORDER BY
+                CASE
+                    WHEN event_cause IS NOT NULL
+                     AND event_cause != 'NoCauseAvailable'
+                    THEN 0
+                    ELSE 1
+                END,
+                cause_flight_count DESC,
+                event_cause ASC
         ) AS cause_rank
-    FROM cause_counts
+    FROM cause_metrics
 ),
-top_causes AS (
+collapsed AS (
     SELECT
         origin,
         month,
         dep_delay_band,
-        CONCAT_WS(
-            '; ',
-            COLLECT_LIST(
-                CONCAT(
-                    CAST(cause_rank AS STRING),
-                    ':',
-                    event_cause,
-                    '=',
-                    CAST(cause_count AS STRING)
+        MAX(flight_count) AS flight_count,
+        ROUND(MAX(dep_delay_sum) / MAX(dep_delay_count), 4) AS avg_dep_delay,
+        ROUND(MAX(arr_delay_sum) / MAX(arr_delay_count), 4) AS avg_arr_delay,
+        CASE
+            WHEN MAX(
+                CASE
+                    WHEN event_cause IS NOT NULL
+                     AND event_cause != 'NoCauseAvailable'
+                    THEN 1
+                    ELSE 0
+                END
+            ) = 0
+            THEN 'NoCauseAvailable'
+            ELSE CONCAT_WS(
+                '; ',
+                SORT_ARRAY(
+                    COLLECT_LIST(
+                        CASE
+                            WHEN event_cause IS NOT NULL
+                             AND event_cause != 'NoCauseAvailable'
+                             AND cause_rank <= 3
+                            THEN CONCAT(
+                                CAST(cause_rank AS STRING),
+                                ':',
+                                event_cause,
+                                '=',
+                                CAST(cause_flight_count AS STRING)
+                            )
+                            ELSE NULL
+                        END
+                    )
                 )
             )
-        ) AS top_3_causes
-    FROM ranked_causes
-    WHERE cause_rank <= 3
+        END AS top_3_causes
+    FROM ranked
     GROUP BY origin, month, dep_delay_band
 )
 INSERT OVERWRITE DIRECTORY '${hiveconf:output_dir}'
 ROW FORMAT DELIMITED
 FIELDS TERMINATED BY ','
 SELECT
-    metrics.origin,
-    metrics.month,
-    metrics.dep_delay_band,
-    metrics.flight_count,
-    metrics.avg_dep_delay,
-    metrics.avg_arr_delay,
-    COALESCE(top_causes.top_3_causes, 'NoCauseAvailable') AS top_3_causes
-FROM metrics
-LEFT JOIN top_causes
-    ON metrics.origin = top_causes.origin
-   AND metrics.month = top_causes.month
-   AND metrics.dep_delay_band = top_causes.dep_delay_band
-ORDER BY metrics.origin, metrics.month, metrics.dep_delay_band;
+    origin,
+    month,
+    dep_delay_band,
+    flight_count,
+    avg_dep_delay,
+    avg_arr_delay,
+    top_3_causes
+FROM collapsed;

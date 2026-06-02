@@ -10,11 +10,14 @@ source scripts/env/project_env.sh
 
 export HIVE_HOME="$HOME/bigdata-tools/apache-hive-4.0.1-bin"
 export HIVE_CONF_DIR="$PROJECT_ROOT/hive/conf"
+export HADOOP_CONF_DIR="$PROJECT_ROOT/hadoop/conf"
 
 mkdir -p "$HIVE_CONF_DIR"
 mkdir -p "$PROJECT_ROOT/hive"
-mkdir -p "$PROJECT_ROOT/hive/warehouse"
 mkdir -p "$PROJECT_ROOT/results/tmp/hive"
+mkdir -p "$PROJECT_ROOT/results/tmp/hive/java_tmp"
+mkdir -p "$PROJECT_ROOT/results/tmp/hive/operation_logs"
+mkdir -p "$PROJECT_ROOT/results/tmp/hive/resources"
 
 cat > "$HIVE_CONF_DIR/hive-site.xml" <<EOF
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
@@ -26,12 +29,12 @@ cat > "$HIVE_CONF_DIR/hive-site.xml" <<EOF
 
   <property>
     <name>hive.metastore.warehouse.dir</name>
-    <value>file://$PROJECT_ROOT/hive/warehouse</value>
+    <value>/user/hive/warehouse</value>
   </property>
 
   <property>
     <name>hive.exec.scratchdir</name>
-    <value>$PROJECT_ROOT/results/tmp/hive</value>
+    <value>/tmp/hive</value>
   </property>
 
   <property>
@@ -42,6 +45,16 @@ cat > "$HIVE_CONF_DIR/hive-site.xml" <<EOF
   <property>
     <name>hive.downloaded.resources.dir</name>
     <value>$PROJECT_ROOT/results/tmp/hive/resources</value>
+  </property>
+
+  <property>
+    <name>hive.server2.logging.operation.log.location</name>
+    <value>$PROJECT_ROOT/results/tmp/hive/operation_logs</value>
+  </property>
+
+  <property>
+    <name>system:java.io.tmpdir</name>
+    <value>$PROJECT_ROOT/results/tmp/hive/java_tmp</value>
   </property>
 
   <property>
@@ -70,6 +83,17 @@ cat > "$HIVE_CONF_DIR/hive-site.xml" <<EOF
   </property>
 </configuration>
 EOF
+
+if hdfs dfs -ls / >/dev/null 2>&1; then
+    echo "Creating Hive directories on HDFS..."
+    hdfs dfs -mkdir -p /tmp /tmp/hive /user/hive/warehouse /flight-delay-project
+    hdfs dfs -chmod 1777 /tmp
+    hdfs dfs -chmod 1777 /tmp/hive
+    hdfs dfs -chmod 775 /user/hive/warehouse
+else
+    echo "HDFS is not active. Skipping HDFS directory initialization."
+    echo "Run this script again after starting HDFS."
+fi
 
 if [ -d "$PROJECT_ROOT/hive/metastore_db" ] && [ -z "$(ls -A "$PROJECT_ROOT/hive/metastore_db" 2>/dev/null)" ]; then
     echo "Removing empty Hive metastore directory so Derby can initialize it..."

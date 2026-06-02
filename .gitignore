@@ -49,6 +49,17 @@ spark-warehouse/
 .derby/
 metastore_db/
 
-# Hadoop local runtime files
+# Local Hadoop/HDFS runtime data
 hadoop/hdfs/
 hadoop/logs/
+hadoop/pids/
+hadoop/tmp/
+
+# Hive local runtime
+hive/metastore_db/
+metastore_db/
+derby.log
+
+# Runtime outputs/temp
+results/tmp/
+results/output/

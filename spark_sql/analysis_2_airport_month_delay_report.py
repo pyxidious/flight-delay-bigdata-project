@@ -131,13 +131,11 @@ def main():
             ON metrics.origin = top_causes.origin
            AND metrics.month = top_causes.month
            AND metrics.dep_delay_band = top_causes.dep_delay_band
-        ORDER BY metrics.origin, metrics.month, metrics.dep_delay_band
         """
     )
 
     (
         result
-        .coalesce(1)
         .write
         .mode("overwrite")
         .option("header", "true")
@@ -147,9 +145,6 @@ def main():
     print("Spark SQL Analysis 2 completed.")
     print(f"Input: {args.input}")
     print(f"Output: {args.output}")
-
-    print("First 10 rows:")
-    result.show(10, truncate=False)
 
     spark.stop()
 

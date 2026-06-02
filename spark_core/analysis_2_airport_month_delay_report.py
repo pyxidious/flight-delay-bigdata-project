@@ -248,7 +248,6 @@ def main():
         metrics
         .leftOuterJoin(cause_counts)
         .map(lambda item: build_output_row(item[0], item[1]))
-        .sortBy(lambda row: (row[0], row[1], row[2]))
     )
 
     output_rdd = sc.parallelize([",".join(OUTPUT_HEADER)]).union(
@@ -261,15 +260,11 @@ def main():
             import shutil
             shutil.rmtree(output_path)
 
-    output_rdd.coalesce(1).saveAsTextFile(args.output)
+    output_rdd.saveAsTextFile(args.output)
 
     print("Spark Core Analysis 2 completed.")
     print(f"Input: {args.input}")
     print(f"Output: {args.output}")
-
-    print("First 10 rows:")
-    for row in result.take(10):
-        print(format_csv_row(row))
 
     sc.stop()
 

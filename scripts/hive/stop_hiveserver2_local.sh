@@ -6,24 +6,28 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 cd "$PROJECT_ROOT"
 
-PID_FILE="results/tmp/hive/hiveserver2.pid"
+PID_FILES=(
+    "results/tmp/hive/hiveserver2.pid"
+    "hive/conf/hiveserver2.pid"
+)
 PROCESS_PATTERN="org.apache.hive.service.server.HiveServer2"
 
-if [ -f "$PID_FILE" ]; then
-    PID="$(cat "$PID_FILE")"
+for PID_FILE in "${PID_FILES[@]}"; do
+    if [ ! -f "$PID_FILE" ]; then
+        continue
+    fi
 
+    PID="$(cat "$PID_FILE")"
     if ps -p "$PID" > /dev/null 2>&1; then
-        echo "Stopping HiveServer2 PID $PID from PID file..."
-        kill "$PID"
+        echo "Stopping HiveServer2 PID $PID from $PID_FILE..."
+        kill "$PID" || true
         sleep 2
     else
-        echo "HiveServer2 process $PID from PID file is not running."
+        echo "HiveServer2 process $PID from $PID_FILE is not running."
     fi
 
     rm -f "$PID_FILE"
-else
-    echo "HiveServer2 PID file not found."
-fi
+done
 
 RUNNING_PIDS="$(pgrep -f "$PROCESS_PATTERN" || true)"
 

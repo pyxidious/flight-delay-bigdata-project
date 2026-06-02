@@ -1,693 +1,95 @@
 # Flight Delay Big Data Project
 
-Project for the Big Data course at Università degli Studi Roma Tre.
+Project for the Big Data course at Universita degli Studi Roma Tre.
 
-The project analyzes the 2024 flight delay dataset using multiple Big Data technologies.  
-The main goals are data preparation, distributed processing, comparison between technologies, performance evaluation and reproducibility.
-
-## Project goals
-
-The project implements two analyses using three Big Data technologies:
+The repository analyzes the 2024 Flight Delay Dataset with three technologies:
 
 - Spark SQL
 - Spark Core
-- Hive
+- Hive on MapReduce
 
-The selected analyses are:
+It implements three jobs:
 
-1. **Airline statistics by origin airport**
-   - total number of flights;
-   - minimum, maximum and average arrival delay;
-   - cancellation rate;
-   - active months.
+1. Airline statistics by origin airport.
+2. Delay report by origin airport, month and departure-delay band.
+3. Airline-airport performance comparison and airport ranking.
 
-2. **Delay report by origin airport and month**
-   - number of flights by departure delay band;
-   - average departure delay;
-   - average arrival delay;
-   - top three delay or cancellation causes.
+## Repository Structure
 
-Spark SQL, Spark Core and Hive outputs are compared automatically to verify result consistency.
+```text
+data/                 local raw, prepared and scaled datasets
+docs/                 data inspection, preparation and validation notes
+hadoop/conf/          local HDFS configuration
+hive/                 official Hive queries
+results/benchmark/    official benchmark artifacts
+scripts/data/         preparation and scaling tools
+scripts/env/          environment helpers
+scripts/hdfs/         local HDFS lifecycle and upload helpers
+scripts/hive/         local HiveServer2 lifecycle helpers
+scripts/run_benchmark.sh
+spark_core/           official Spark Core jobs
+spark_sql/            official Spark SQL jobs
+archive/              preserved historical material
+```
 
-## Dataset
+## Setup
 
-The dataset is not included in this repository because of its size.
+Create the Python environment and install dependencies:
 
-Expected local path:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+The local environment helper expects Spark, Hadoop and Hive under
+`~/bigdata-tools/` and configures the required Java runtime:
+
+```bash
+source scripts/env/project_env.sh
+bash scripts/env/check_environment.sh
+```
+
+## Data Preparation
+
+Place the source CSV at:
 
 ```text
 data/raw/flight_data_2024.csv
 ```
 
-The current dataset used during development contains:
-
-```text
-7,079,081 rows
-35 original columns
-approximately 1.22 GB
-```
-
-The cleaned dataset is generated locally and saved under:
-
-```text
-data/cleaned/
-```
-
-Benchmark samples are generated under:
-
-```text
-data/samples/
-```
-
-Generated datasets are excluded from Git versioning.
-
-## Technologies
-
-The project uses:
-
-- Python 3.12
-- pandas
-- NumPy
-- PyArrow
-- PySpark
-- Apache Spark 3.5.3
-- Apache Hadoop 3.3.6
-- Apache Hive 4.0.1
-- OpenJDK 11
-
-The implemented technologies are:
-
-```text
-Spark SQL
-Spark Core
-Hive
-```
-
-MapReduce/Hadoop Streaming is not part of the main implementation because the project already satisfies the requirement of using at least three Big Data technologies.
-
-## Repository structure
-
-```text
-flight-delay-bigdata-project/
-├── data/
-│   ├── raw/                 # local raw dataset, not versioned
-│   ├── cleaned/             # cleaned CSV and Parquet files, not versioned
-│   ├── samples/             # benchmark samples, not versioned
-│   └── output/
-├── docs/                    # inspection, validation and comparison reports
-├── hadoop/
-│   └── conf/                # versioned local HDFS configuration
-├── hive/                    # HiveQL analyses
-├── report/                  # final report files
-├── results/
-│   ├── output/              # full generated outputs, not versioned
-│   ├── tables/              # legacy local preview tables
-│   ├── tables_hdfs/         # official HDFS preview tables
-│   ├── benchmarks/          # legacy local benchmark files
-│   ├── benchmarks_hdfs/     # official HDFS benchmark files
-│   └── tmp/                 # temporary runtime files, not versioned
-├── scripts/
-│   ├── env/                 # environment setup and checks
-│   ├── data/                # inspection, cleaning and sample generation
-│   ├── run/                 # legacy local runners and benchmarks
-│   ├── run_hdfs/            # official HDFS runners and benchmarks
-│   ├── hdfs/                # local HDFS lifecycle and upload scripts
-│   ├── hive/                # local HiveServer2 lifecycle
-│   ├── compare/             # output comparisons
-│   └── benchmark/           # benchmark summary generation
-├── spark_core/              # Spark Core implementations
-├── spark_sql/               # Spark SQL implementations
-├── .gitignore
-├── README.md
-└── requirements.txt
-```
-
-## Python environment setup
-
-Create the virtual environment:
-
-```bash
-python3 -m venv .venv
-```
-
-Activate it:
-
-```bash
-source .venv/bin/activate
-```
-
-Upgrade pip:
-
-```bash
-python -m pip install --upgrade pip
-```
-
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Verify the Python environment:
-
-```bash
-python -c "import pandas, numpy, matplotlib, pyarrow, pyspark; print('Environment OK')"
-```
-
-## Big Data tools setup
-
-This project uses local Big Data tools extracted under:
-
-```text
-~/bigdata-tools/
-```
-
-Expected paths:
-
-```text
-~/bigdata-tools/spark-3.5.3-bin-hadoop3
-~/bigdata-tools/hadoop-3.3.6
-~/bigdata-tools/apache-hive-4.0.1-bin
-```
-
-Before running Spark, Hadoop or Hive commands, load the project environment:
-
-```bash
-source scripts/env/project_env.sh
-```
-
-The project environment file sets:
-
-```text
-JAVA_HOME
-SPARK_HOME
-HADOOP_HOME
-HIVE_HOME
-BIGDATA_TOOLS_HOME
-PATH
-```
-
-The project uses OpenJDK 11 even if the system default Java version is different.
-
-Verify the Big Data setup:
-
-```bash
-java -version
-javac -version
-spark-submit --version
-hadoop version
-hive --version
-```
-
-## Environment check
-
-After setting up the Python environment and extracting the Big Data tools, run:
-
-```bash
-bash scripts/env/check_environment.sh
-```
-
-This script verifies:
-
-- project directory;
-- project environment variables;
-- Python version;
-- required Python dependencies;
-- Java version used by the project;
-- Spark availability;
-- Hadoop availability;
-- Hive availability;
-- local dataset path.
-
-## Data inspection
-
-Inspect the raw dataset:
+Prepare and validate the dataset:
 
 ```bash
 python scripts/data/inspect_dataset.py
-```
-
-The inspection report is saved to:
-
-```text
-docs/dataset_inspection.md
-```
-
-The report includes:
-
-- dataset path;
-- file size;
-- number of rows;
-- number of columns;
-- inferred data types on sample;
-- missing values on sample;
-- candidate columns for the required analyses.
-
-## Data preparation
-
-Prepare the cleaned dataset:
-
-```bash
 python scripts/data/prepare_data.py
-```
-
-Generated files:
-
-```text
-data/cleaned/flights_clean.csv
-data/cleaned/flights_clean.parquet
-docs/cleaning_report.md
-```
-
-The cleaning step:
-
-- selects relevant columns;
-- renames carrier column to `airline`;
-- normalizes airline and airport codes;
-- creates the `route` column;
-- creates `is_completed_flight`;
-- creates `dep_delay_band`;
-- normalizes cancellation codes;
-- derives the `main_delay_cause` column;
-- saves CSV and Parquet outputs.
-
-Validate the cleaned dataset:
-
-```bash
 python scripts/data/validate_cleaned_data.py
 ```
 
-Validation report:
-
-```text
-docs/cleaned_data_validation.md
-```
-
-## Benchmark samples
-
-Generate benchmark samples:
+Generate increasing local datasets and upload them to HDFS:
 
 ```bash
 bash scripts/data/generate_samples.sh
-```
-
-Generated files:
-
-```text
-data/samples/flights_100k.csv
-data/samples/flights_500k.csv
-data/samples/flights_1m.csv
-data/samples/flights_3m.csv
-data/samples/flights_7m.csv
-```
-
-These files are generated locally and excluded from Git versioning.
-
-The `100k` through `7m` files are increasing portions of the cleaned dataset. Generate
-larger controlled replicas with:
-
-```bash
-python scripts/data/generate_replicated_datasets.py
-```
-
-Generated replicated files:
-
-```text
-data/samples/flights_10m.csv
-data/samples/flights_14m.csv
-```
-
-`flights_10m.csv` contains the full cleaned dataset plus a partial controlled
-replication up to exactly 10,000,000 data rows. `flights_14m.csv` contains the
-full cleaned dataset replicated twice.
-
-## Local HDFS setup
-
-The official execution path uses a local pseudo-distributed HDFS instance with
-replication factor `1`. Initialize its configuration and NameNode metadata once:
-
-```bash
-bash scripts/hdfs/init_hdfs_local.sh
-```
-
-Start HDFS, verify it and upload generated samples:
-
-```bash
+python scripts/data/generate_replicated_datasets.py --factors 10m 14m
 bash scripts/hdfs/start_hdfs_local.sh
-bash scripts/hdfs/check_hdfs.sh
 bash scripts/hdfs/upload_samples_to_hdfs.sh
+bash scripts/hdfs/check_hdfs.sh
 ```
 
-Uploaded datasets are stored under:
+## Benchmark
 
-```text
-/flight-delay-project/input/<dataset-label>/flights.csv
-```
-
-Stop HDFS when it is no longer needed:
+The only official benchmark entrypoint is:
 
 ```bash
-bash scripts/hdfs/stop_hdfs_local.sh
+bash scripts/run_benchmark.sh
 ```
 
-## Implemented analyses
-
-### Analysis 1 — Airline statistics by origin airport
-
-Implemented with:
-
-```text
-spark_sql/analysis_1_airline_stats.py
-spark_core/analysis_1_airline_stats.py
-hive/analysis_1_airline_stats.sql
-```
-
-Output columns:
-
-```text
-airline
-origin
-total_flights
-min_arr_delay
-max_arr_delay
-avg_arr_delay
-cancelled_flights
-cancellation_rate
-active_months
-```
-
-### Analysis 2 — Delay report by airport and month
-
-Implemented with:
-
-```text
-spark_sql/analysis_2_airport_month_delay_report.py
-spark_core/analysis_2_airport_month_delay_report.py
-hive/analysis_2_airport_month_delay_report.sql
-```
-
-Output columns:
-
-```text
-origin
-month
-dep_delay_band
-flight_count
-avg_dep_delay
-avg_arr_delay
-top_3_causes
-```
-
-## Running HDFS analyses
-
-HDFS runners write complete outputs under
-`/flight-delay-project/output/` and small local previews under
-`results/tables_hdfs/`.
-
-Run Spark SQL analyses:
+Inspect the plan without starting jobs:
 
 ```bash
-bash scripts/run_hdfs/run_spark_sql_analysis_1_hdfs.sh 100k
-bash scripts/run_hdfs/run_spark_sql_analysis_2_hdfs.sh 100k
+bash scripts/run_benchmark.sh --dry-run
 ```
 
-Run Spark Core analyses:
-
-```bash
-bash scripts/run_hdfs/run_spark_core_analysis_1_hdfs.sh 100k
-bash scripts/run_hdfs/run_spark_core_analysis_2_hdfs.sh 100k
-```
-
-Hive runners assume HiveServer2 is active. Start it once, then run:
-
-```bash
-bash scripts/hive/start_hiveserver2_local.sh
-bash scripts/run_hdfs/run_hive_analysis_1_hdfs.sh 100k
-bash scripts/run_hdfs/run_hive_analysis_2_hdfs.sh 100k
-bash scripts/hive/stop_hiveserver2_local.sh
-```
-
-Run all six HDFS analyses together:
-
-```bash
-bash scripts/run_hdfs/run_all_hdfs_analyses.sh 100k
-```
-
-The global runner starts HDFS and HiveServer2 when needed and stops only the
-services that it started itself.
-
-## HDFS benchmark
-
-After uploading all generated samples to HDFS, run the official benchmark with:
-
-```bash
-bash scripts/run_hdfs/run_hdfs_benchmarks.sh
-```
-
-This writes:
-
-```text
-results/benchmarks_hdfs/hdfs_benchmark_results.csv
-```
-
-Generate HDFS benchmark tables, charts and the Markdown summary with:
-
-```bash
-python scripts/benchmark/create_hdfs_benchmark_summary.py
-```
-
-The HDFS benchmark is the primary performance experiment. It measures job
-runners only: HDFS initialization, service startup and dataset upload are
-excluded. Benchmark results are not considered complete until the CSV has been
-generated by running the full benchmark explicitly.
-
-## Legacy local/debug runners
-
-The filesystem-local runners remain available as a baseline for debugging and
-logical output comparisons.
-
-### Spark SQL
-
-Analysis 1:
-
-```bash
-bash scripts/run/run_spark_sql_analysis_1.sh \
-  data/samples/flights_100k.csv \
-  results/output/spark_sql/analysis_1_100k \
-  results/tables/spark_sql_analysis_1_100k_preview.csv
-```
-
-Analysis 2:
-
-```bash
-bash scripts/run/run_spark_sql_analysis_2.sh \
-  data/samples/flights_100k.csv \
-  results/output/spark_sql/analysis_2_100k \
-  results/tables/spark_sql_analysis_2_100k_preview.csv
-```
-
-### Spark Core
-
-Analysis 1:
-
-```bash
-bash scripts/run/run_spark_core_analysis_1.sh \
-  data/samples/flights_100k.csv \
-  results/output/spark_core/analysis_1_100k \
-  results/tables/spark_core_analysis_1_100k_preview.csv
-```
-
-Analysis 2:
-
-```bash
-bash scripts/run/run_spark_core_analysis_2.sh \
-  data/samples/flights_100k.csv \
-  results/output/spark_core/analysis_2_100k \
-  results/tables/spark_core_analysis_2_100k_preview.csv
-```
-
-### Hive
-
-Initialize Hive local configuration:
-
-```bash
-bash scripts/hive/init_hive_local.sh
-```
-
-Start HiveServer2:
-
-```bash
-bash scripts/hive/start_hiveserver2_local.sh
-```
-
-Analysis 1:
-
-```bash
-bash scripts/run/run_hive_analysis_1.sh \
-  data/samples/flights_100k.csv \
-  results/output/hive/analysis_1_100k \
-  results/tables/hive_analysis_1_100k_preview.csv
-```
-
-Analysis 2:
-
-```bash
-bash scripts/run/run_hive_analysis_2.sh \
-  data/samples/flights_100k.csv \
-  results/output/hive/analysis_2_100k \
-  results/tables/hive_analysis_2_100k_preview.csv
-```
-
-Stop HiveServer2:
-
-```bash
-bash scripts/hive/stop_hiveserver2_local.sh
-```
-
-## Legacy local runner
-
-Run all implemented analyses on a selected dataset:
-
-```bash
-bash scripts/run/run_all_analyses.sh 100k data/samples/flights_100k.csv
-```
-
-The script runs:
-
-```text
-Spark SQL Analysis 1
-Spark SQL Analysis 2
-Spark Core Analysis 1
-Spark Core Analysis 2
-Hive Analysis 1
-Hive Analysis 2
-```
-
-It also checks whether HiveServer2 is already running.  
-If HiveServer2 is not running, the script starts it automatically and stops it at the end.
-
-## Result previews
-
-Full outputs are saved under:
-
-```text
-results/output/
-```
-
-Full outputs are excluded from Git versioning.
-
-Small preview tables are saved under:
-
-```text
-results/tables/
-```
-
-Preview files contain the header and the first ten rows of each output.  
-These files are versioned because they are useful for documentation and for the final report.
-
-## Output comparison
-
-Spark SQL and Spark Core outputs are compared with:
-
-```bash
-python scripts/compare/compare_analysis_1_outputs.py \
-  --spark-sql-output results/output/spark_sql/analysis_1_100k \
-  --spark-core-output results/output/spark_core/analysis_1_100k \
-  --report docs/analysis_1_output_comparison.md
-```
-
-```bash
-python scripts/compare/compare_analysis_2_outputs.py \
-  --spark-sql-output results/output/spark_sql/analysis_2_100k \
-  --spark-core-output results/output/spark_core/analysis_2_100k \
-  --report docs/analysis_2_output_comparison.md
-```
-
-Hive and Spark SQL outputs are compared with:
-
-```bash
-python scripts/compare/compare_analysis_1_hive_spark_sql.py \
-  --spark-sql-output results/output/spark_sql/analysis_1_100k \
-  --hive-output results/output/hive/analysis_1_100k \
-  --report docs/analysis_1_hive_spark_sql_comparison.md
-```
-
-```bash
-python scripts/compare/compare_analysis_2_hive_spark_sql.py \
-  --spark-sql-output results/output/spark_sql/analysis_2_100k \
-  --hive-output results/output/hive/analysis_2_100k \
-  --report docs/analysis_2_hive_spark_sql_comparison.md
-```
-
-The comparisons use a small floating-point tolerance to account for minor numerical differences between engines.
-
-## Legacy local benchmark
-
-Run the complete local benchmark only after generating all samples:
-
-```bash
-bash scripts/run/run_benchmarks.sh
-```
-
-The runner measures the end-to-end time of each individual analysis runner for:
-
-```text
-100k, 500k, 1m, 3m, 7m, 10m, 14m
-```
-
-It starts HiveServer2 before the sequence when needed and stops it at the end
-only if it started the service itself. Generate the summary tables and charts
-from the resulting CSV with:
-
-```bash
-python scripts/benchmark/create_benchmark_summary.py
-```
-
-The main benchmark input is:
-
-```text
-results/benchmarks/benchmark_results.csv
-```
-
-The generated report is:
-
-```text
-docs/benchmark_summary.md
-```
-
-This historical local-filesystem benchmark is retained for reference. The
-official benchmark path is now the HDFS benchmark described above.
-
-## Reproducibility
-
-The repository includes:
-
-- fixed Python dependencies in `requirements.txt`;
-- project environment setup in `scripts/env/project_env.sh`;
-- environment verification script;
-- data inspection script;
-- data preparation script;
-- cleaned data validation script;
-- benchmark sample generation script;
-- analysis implementations for Spark SQL, Spark Core and Hive;
-- runners for individual analyses;
-- runner for all analyses;
-- automatic output comparison scripts;
-- generated preview tables;
-- documentation reports under `docs/`.
-
-Large datasets, full generated outputs and local runtime files are excluded from Git versioning.
-
-## Git versioning policy
-
-Do not commit raw data, cleaned data, generated samples, complete job outputs,
-`hadoop/hdfs/`, `hadoop/logs/` or local Hive/Spark runtime files. Small HDFS
-preview tables under `results/tables_hdfs/`, HDFS benchmark summaries under
-`results/benchmarks_hdfs/`, Hadoop XML configuration, Markdown documentation,
-scripts, HiveQL queries and Spark code are intended to remain versionable.
-
-## Planned cloud/cluster experiment
-
-The current reproducible baseline uses local pseudo-distributed HDFS. A future
-experiment will execute the same analyses on a cloud or multi-node cluster and
-document the deployment separately.
+Official artifacts are written under `results/benchmark/`. See
+[`README_BENCHMARK.md`](README_BENCHMARK.md) for the protocol, configuration
+and complete reproducibility instructions.
