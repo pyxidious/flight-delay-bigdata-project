@@ -29,7 +29,6 @@ scripts/hive/         local HiveServer2 lifecycle helpers
 scripts/run_benchmark.sh
 spark_core/           official Spark Core jobs
 spark_sql/            official Spark SQL jobs
-archive/              preserved historical material
 ```
 
 ## Setup

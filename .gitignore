@@ -63,3 +63,7 @@ derby.log
 # Runtime outputs/temp
 results/tmp/
 results/output/
+
+# Local archives
+archive/
+results/benchmark/archive/

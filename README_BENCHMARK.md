@@ -89,7 +89,7 @@ Official artifacts are written to `results/benchmark/`:
 - `benchmark_summary.csv`: aggregate timing statistics.
 - `benchmark_analysis_1.png`: Analysis 1 timing chart.
 - `benchmark_analysis_2.png`: Analysis 2 timing chart.
-- `benchmark_analysis_3.png`: Analysis 3 timing chart after the next full campaign.
+- `benchmark_analysis_3.png`: Analysis 3 timing chart.
 - `benchmark_report.md`: protocol and generated result report.
 - `session.log`: memory, swap and JVM diagnostics.
 - `logs/`: one execution log per run.
