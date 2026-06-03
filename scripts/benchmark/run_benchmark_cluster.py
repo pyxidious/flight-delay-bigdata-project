@@ -9,6 +9,7 @@ import shutil
 import statistics
 import subprocess
 import sys
+import tarfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -43,6 +44,7 @@ RUN_FIELDS = [
     "timestamp",
     "campaign_tag",
     "technology",
+    "variant",
     "analysis",
     "dataset_label",
     "run_type",
@@ -59,6 +61,7 @@ RUN_FIELDS = [
 ]
 SUMMARY_FIELDS = [
     "technology",
+    "variant",
     "analysis",
     "dataset_label",
     "input_rows",
@@ -82,15 +85,33 @@ GENERATED_FILENAMES = [
     "benchmark_analysis_3.png",
     "benchmark_report.md",
     "session.log",
+    "benchmark_results.tar.gz",
 ]
-HIVE_MR_CONF = [
-    "--hiveconf",
-    "hive.execution.engine=mr",
-    "--hiveconf",
-    "hive.exec.reducers.bytes.per.reducer=256000000",
-    "--hiveconf",
-    "hive.exec.reducers.max=1009",
-]
+HIVE_REDUCER_VARIANT_ORDER = ["auto", "r8", "r16", "r32"]
+HIVE_AUTO_REDUCER_BYTES = os.environ.get("HIVE_AUTO_REDUCER_BYTES", "256000000")
+HIVE_AUTO_REDUCER_MAX = os.environ.get("HIVE_AUTO_REDUCER_MAX", "1009")
+
+
+def hive_mr_conf(variant: str) -> list[str]:
+    conf = ["--hiveconf", "hive.execution.engine=mr"]
+    if variant == "auto":
+        conf.extend([
+            "--hiveconf",
+            f"hive.exec.reducers.bytes.per.reducer={HIVE_AUTO_REDUCER_BYTES}",
+            "--hiveconf",
+            f"hive.exec.reducers.max={HIVE_AUTO_REDUCER_MAX}",
+        ])
+        return conf
+    if variant.startswith("r") and variant[1:].isdigit():
+        reducers = variant[1:]
+        conf.extend([
+            "--hiveconf",
+            f"mapreduce.job.reduces={reducers}",
+            "--hiveconf",
+            f"hive.exec.reducers.max={reducers}",
+        ])
+        return conf
+    raise ValueError(f"Unsupported Hive reducer variant: {variant}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -110,6 +131,29 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--skip-hive", action="store_true")
     parser.add_argument("--skip-spark-sql", action="store_true")
     parser.add_argument("--skip-spark-core", action="store_true")
+    parser.add_argument(
+        "--hive-reducer-variants",
+        nargs="+",
+        choices=HIVE_REDUCER_VARIANT_ORDER,
+        default=["auto"],
+        help="Hive MapReduce reducer variants to execute: auto, r8, r16 or r32.",
+    )
+    parser.add_argument(
+        "--s3-uri",
+        default=os.environ.get("BENCHMARK_S3_URI", ""),
+        help="Optional S3 prefix such as s3://bucket/results. If provided with --s3-upload, artifacts are uploaded at the end.",
+    )
+    parser.add_argument(
+        "--s3-upload",
+        action="store_true",
+        default=os.environ.get("BENCHMARK_S3_UPLOAD", "").lower() in {"1", "true", "yes"},
+        help="Upload generated result files to --s3-uri after the campaign completes.",
+    )
+    parser.add_argument(
+        "--service-file",
+        default=os.environ.get("BENCHMARK_SERVICE_FILE", ""),
+        help="Optional completion marker path used by service/polling scripts.",
+    )
     parser.add_argument("--yes", action="store_true")
     parser.add_argument(
         "--hive-client",
@@ -171,14 +215,15 @@ def hdfs(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     return run(["hdfs", "dfs", *args], check=check)
 
 
-def hive_base(args: argparse.Namespace) -> list[str]:
+def hive_base(args: argparse.Namespace, variant: str = "auto") -> list[str]:
+    conf = hive_mr_conf(variant)
     if args.hive_client == "beeline":
-        return ["beeline", "-u", JDBC_URL, *HIVE_MR_CONF]
-    return ["hive", *HIVE_MR_CONF]
+        return ["beeline", "-u", JDBC_URL, *conf]
+    return ["hive", *conf]
 
 
-def hive_command(args: argparse.Namespace, *extra: str) -> list[str]:
-    return [*hive_base(args), *extra]
+def hive_command(args: argparse.Namespace, *extra: str, variant: str = "auto") -> list[str]:
+    return [*hive_base(args, variant), *extra]
 
 
 def selected_technologies(args: argparse.Namespace) -> list[str]:
@@ -188,6 +233,16 @@ def selected_technologies(args: argparse.Namespace) -> list[str]:
         "spark_core": args.skip_spark_core,
     }
     return [technology for technology in TECHNOLOGY_ORDER if not skipped[technology]]
+
+
+def selected_workloads(args: argparse.Namespace) -> list[tuple[str, str]]:
+    workloads: list[tuple[str, str]] = []
+    for technology in selected_technologies(args):
+        if technology == "hive":
+            workloads.extend((technology, variant) for variant in args.hive_reducer_variants)
+        else:
+            workloads.append((technology, "default"))
+    return workloads
 
 
 def input_path(dataset: str) -> str:
@@ -202,15 +257,17 @@ def input_dir(dataset: str) -> str:
     return hdfs_path(f"{CLUSTER_HDFS_INPUT_BASE}/{dataset}")
 
 
-def output_path(tag: str, technology: str, analysis: str, dataset: str, run_index: int) -> str:
+def output_path(tag: str, technology: str, variant: str, analysis: str, dataset: str, run_index: int) -> str:
+    variant_part = variant if technology == "hive" else "default"
     return hdfs_uri(
-        f"{CLUSTER_HDFS_OUTPUT_BASE}/{tag}/{technology}/{analysis}_{dataset}_repeated_{run_index}"
+        f"{CLUSTER_HDFS_OUTPUT_BASE}/{tag}/{technology}/{variant_part}/{analysis}_{dataset}_repeated_{run_index}"
     )
 
 
 def job_command(
     args: argparse.Namespace,
     technology: str,
+    variant: str,
     analysis: str,
     dataset: str,
     target: str,
@@ -221,7 +278,7 @@ def job_command(
             "analysis_2": "hive/analysis_2_airport_month_delay_report.sql",
             "analysis_3": "hive/analysis_3_airline_airport_ranking.sql",
         }[analysis]
-        return hive_command(args, "--hiveconf", f"output_dir={target}", "-f", sql)
+        return hive_command(args, "--hiveconf", f"output_dir={target}", "-f", sql, variant=variant)
 
     spark_submit = ["spark-submit", "--master", "yarn", "--deploy-mode", "client"]
     if driver_memory := os.environ.get("SPARK_DRIVER_MEMORY"):
@@ -241,13 +298,14 @@ def job_command(
     return [*spark_submit, script, "--input", input_path(dataset), "--output", target]
 
 
-def prepare_hive_command(args: argparse.Namespace, dataset: str) -> list[str]:
+def prepare_hive_command(args: argparse.Namespace, dataset: str, variant: str = "auto") -> list[str]:
     return hive_command(
         args,
         "--hiveconf",
         f"input_dir={input_dir(dataset)}",
         "-f",
         "hive/prepare_flights_table.sql",
+        variant=variant,
     )
 
 
@@ -315,7 +373,7 @@ def hiveserver2_ready() -> bool:
     return run(["beeline", "-u", JDBC_URL, "--silent=true", "-e", "SELECT 1;"], check=False).returncode == 0
 
 
-def print_block_snapshot(args: argparse.Namespace, session_log: Path, technology: str) -> None:
+def print_block_snapshot(args: argparse.Namespace, session_log: Path, technology: str, variant: str) -> None:
     commands = [
         ["free", "-h"],
         ["swapon", "--show"],
@@ -326,12 +384,12 @@ def print_block_snapshot(args: argparse.Namespace, session_log: Path, technology
         ["hdfs", "getconf", "-confKey", "fs.defaultFS"],
     ]
     for command in commands:
-        snapshot_command(session_log, f"BEFORE {technology}", command)
+        snapshot_command(session_log, f"BEFORE {technology}/{variant}", command)
 
     hs2_status = "ready" if hiveserver2_ready() else "not-ready"
     hs2_pids = ",".join(hiveserver2_pids()) or "none"
-    append_session(session_log, f"HiveServer2 status before {technology}: {hs2_status}; pids={hs2_pids}")
-    print(f"[CHECK] {technology}: HDFS=ready YARN=ready HiveServer2={hs2_status} pids={hs2_pids}")
+    append_session(session_log, f"HiveServer2 status before {technology}/{variant}: {hs2_status}; pids={hs2_pids}")
+    print(f"[CHECK] {technology}/{variant}: HDFS=ready YARN=ready HiveServer2={hs2_status} pids={hs2_pids}")
     if technology == "hive" and args.hive_client == "beeline" and hs2_status != "ready":
         raise RuntimeError(
             "--hive-client beeline was selected, but HiveServer2 is not reachable. "
@@ -375,20 +433,21 @@ def execute_one(
     results_dir: Path,
     tag: str,
     technology: str,
+    variant: str,
     analysis: str,
     dataset: str,
     run_index: int,
 ) -> dict[str, object]:
-    target = output_path(tag, technology, analysis, dataset, run_index)
-    log_path = results_dir / "logs" / f"{tag}_{technology}_{analysis}_{dataset}_repeated_{run_index}.log"
+    target = output_path(tag, technology, variant, analysis, dataset, run_index)
+    log_path = results_dir / "logs" / f"{tag}_{technology}_{variant}_{analysis}_{dataset}_repeated_{run_index}.log"
     timestamp = datetime.now(timezone.utc).isoformat()
 
     # Outside timer, matching the local protocol.
     hdfs("-rm", "-r", "-f", target, check=False)
     if technology == "hive":
-        run(prepare_hive_command(args, dataset), log_path=log_path)
+        run(prepare_hive_command(args, dataset, variant), log_path=log_path)
 
-    command = job_command(args, technology, analysis, dataset, target)
+    command = job_command(args, technology, variant, analysis, dataset, target)
     started = time.perf_counter()
     completed = run(command, check=False, log_path=log_path)
     elapsed = time.perf_counter() - started
@@ -407,6 +466,7 @@ def execute_one(
         "timestamp": timestamp,
         "campaign_tag": tag,
         "technology": technology,
+        "variant": variant,
         "analysis": analysis,
         "dataset_label": dataset,
         "run_type": "repeated",
@@ -431,43 +491,51 @@ def write_csv(path: Path, fields: list[str], rows: list[dict[str, object]]) -> N
 
 
 def summarize(runs: list[dict[str, object]]) -> list[dict[str, object]]:
-    grouped: dict[tuple[str, str, str], list[dict[str, object]]] = {}
+    grouped: dict[tuple[str, str, str, str], list[dict[str, object]]] = {}
     for row in runs:
-        key = (str(row["technology"]), str(row["analysis"]), str(row["dataset_label"]))
+        key = (
+            str(row["technology"]),
+            str(row.get("variant", "default")),
+            str(row["analysis"]),
+            str(row["dataset_label"]),
+        )
         grouped.setdefault(key, []).append(row)
 
     summary: list[dict[str, object]] = []
     for technology in TECHNOLOGY_ORDER:
-        for analysis in ANALYSIS_ORDER:
-            for dataset in DATASET_ORDER:
-                rows = grouped.get((technology, analysis, dataset), [])
-                if not rows:
-                    continue
-                successful = [row for row in rows if row["status"] == "success"]
-                values = [float(row["elapsed_seconds_job_time"]) for row in successful]
-                output_rows = successful[0]["output_rows"] if successful else ""
-                part_counts = [int(row["output_part_files_count"]) for row in successful]
-                summary.append(
-                    {
-                        "technology": technology,
-                        "analysis": analysis,
-                        "dataset_label": dataset,
-                        "input_rows": rows[0]["input_rows"],
-                        "input_bytes_hdfs": rows[0]["input_bytes_hdfs"],
-                        "successful_runs": len(successful),
-                        "failed_runs": len(rows) - len(successful),
-                        "mean_seconds": f"{statistics.mean(values):.4f}" if values else "",
-                        "median_seconds": f"{statistics.median(values):.4f}" if values else "",
-                        "stddev_seconds": f"{statistics.stdev(values):.4f}" if len(values) > 1 else "",
-                        "min_seconds": f"{min(values):.4f}" if values else "",
-                        "max_seconds": f"{max(values):.4f}" if values else "",
-                        "best_run_seconds": f"{min(values):.4f}" if values else "",
-                        "output_rows": output_rows,
-                        "output_part_files_count": ",".join(str(value) for value in sorted(set(part_counts)))
-                        if part_counts
-                        else "",
-                    }
-                )
+        variants = HIVE_REDUCER_VARIANT_ORDER if technology == "hive" else ["default"]
+        for variant in variants:
+            for analysis in ANALYSIS_ORDER:
+                for dataset in DATASET_ORDER:
+                    rows = grouped.get((technology, variant, analysis, dataset), [])
+                    if not rows:
+                        continue
+                    successful = [row for row in rows if row["status"] == "success"]
+                    values = [float(row["elapsed_seconds_job_time"]) for row in successful]
+                    output_rows = successful[0]["output_rows"] if successful else ""
+                    part_counts = [int(row["output_part_files_count"]) for row in successful]
+                    summary.append(
+                        {
+                            "technology": technology,
+                            "variant": variant,
+                            "analysis": analysis,
+                            "dataset_label": dataset,
+                            "input_rows": rows[0]["input_rows"],
+                            "input_bytes_hdfs": rows[0]["input_bytes_hdfs"],
+                            "successful_runs": len(successful),
+                            "failed_runs": len(rows) - len(successful),
+                            "mean_seconds": f"{statistics.mean(values):.4f}" if values else "",
+                            "median_seconds": f"{statistics.median(values):.4f}" if values else "",
+                            "stddev_seconds": f"{statistics.stdev(values):.4f}" if len(values) > 1 else "",
+                            "min_seconds": f"{min(values):.4f}" if values else "",
+                            "max_seconds": f"{max(values):.4f}" if values else "",
+                            "best_run_seconds": f"{min(values):.4f}" if values else "",
+                            "output_rows": output_rows,
+                            "output_part_files_count": ",".join(str(value) for value in sorted(set(part_counts)))
+                            if part_counts
+                            else "",
+                        }
+                    )
     return summary
 
 
@@ -487,12 +555,16 @@ def create_plots(results_dir: Path, summary: list[dict[str, object]], analyses: 
         return
     frame["dataset_label"] = pd.Categorical(frame["dataset_label"], DATASET_ORDER, ordered=True)
     frame["mean_seconds"] = pd.to_numeric(frame["mean_seconds"], errors="coerce")
+    frame["series"] = frame.apply(
+        lambda row: f"{row['technology']}_{row['variant']}" if row.get("variant", "default") != "default" else str(row["technology"]),
+        axis=1,
+    )
     for analysis in analyses:
         subset = frame[(frame["analysis"] == analysis) & frame["mean_seconds"].notna()]
         if subset.empty:
             _, ax = plt.subplots()
         else:
-            pivot = subset.pivot(index="dataset_label", columns="technology", values="mean_seconds")
+            pivot = subset.pivot(index="dataset_label", columns="series", values="mean_seconds")
             pivot = pivot.reindex(DATASET_ORDER)
             ax = pivot.plot(marker="o")
         ax.set_title(f"Cluster HDFS repeated job time - distributed output - {analysis}")
@@ -518,7 +590,7 @@ def markdown_table(rows: list[dict[str, object]], fields: list[str]) -> str:
 def write_report(
     results_dir: Path,
     args: argparse.Namespace,
-    technologies: list[str],
+    workloads: list[tuple[str, str]],
     runs: list[dict[str, object]],
     summary: list[dict[str, object]],
 ) -> None:
@@ -537,7 +609,9 @@ def write_report(
         "- Output remains distributed. No presentation-only global final sort, `coalesce(1)`, timed preview action or single-file output was introduced.",
         "- Spark cluster mode: `--master yarn --deploy-mode client`.",
         "- Hive execution engine is forced to `mr`; EMR's default Tez engine is intentionally not used for the benchmark numbers.",
-        "- Hive reducer policy: `hive.exec.reducers.bytes.per.reducer=256000000`, `hive.exec.reducers.max=1009`; `mapreduce.job.reduces` is not pinned.",
+        f"- Hive reducer variants: `{', '.join(args.hive_reducer_variants)}`.",
+        f"- Hive auto reducer policy: `hive.exec.reducers.bytes.per.reducer={HIVE_AUTO_REDUCER_BYTES}`, `hive.exec.reducers.max={HIVE_AUTO_REDUCER_MAX}`; `mapreduce.job.reduces` is not pinned for variant `auto`.",
+        "- Hive pinned reducer variants set `mapreduce.job.reduces` explicitly; for example `r8` means `mapreduce.job.reduces=8`.",
         f"- Hive client: `{args.hive_client}`.",
         f"- Campaign tag: `{args.campaign_tag}`.",
         f"- Dataset order: `{', '.join(args.datasets)}`.",
@@ -546,7 +620,7 @@ def write_report(
         "",
         "## Block Order And Services",
         "",
-        f"- Selected block order: `{', '.join(technologies)}`.",
+        f"- Selected block order: `{', '.join(f'{technology}/{variant}' for technology, variant in workloads)}`.",
         "- HDFS and YARN remain active throughout the campaign.",
         "- HiveServer2 is not started or stopped by this script; Beeline mode requires it to already be available.",
         "",
@@ -566,7 +640,7 @@ def write_report(
         "",
         "## Failures",
         "",
-        markdown_table(failed, ["technology", "analysis", "dataset_label", "status", "error_log_path"])
+        markdown_table(failed, ["technology", "variant", "analysis", "dataset_label", "status", "error_log_path"])
         if failed
         else "No failed runs were recorded.",
         "",
@@ -578,35 +652,89 @@ def write_report(
     (results_dir / "benchmark_report.md").write_text("\n".join(lines), encoding="utf-8")
 
 
-def print_dry_run(args: argparse.Namespace, technologies: list[str]) -> None:
-    print("DRY RUN: no service, HDFS command, Hive query or Spark job will be started.")
+def make_results_archive(results_dir: Path) -> Path:
+    archive_path = results_dir / "benchmark_results.tar.gz"
+    if archive_path.exists():
+        archive_path.unlink()
+    with tarfile.open(archive_path, "w:gz") as tar:
+        for path in results_dir.rglob("*"):
+            if path == archive_path:
+                continue
+            tar.add(path, arcname=path.relative_to(results_dir))
+    return archive_path
+
+
+def upload_results_to_s3(args: argparse.Namespace, results_dir: Path, session_log: Path) -> None:
+    if not args.s3_upload and not args.s3_uri:
+        return
+    if not args.s3_uri.startswith("s3://"):
+        raise RuntimeError("--s3-upload requires --s3-uri with an s3:// prefix.")
+    archive_path = make_results_archive(results_dir)
+    destination = args.s3_uri.rstrip("/") + "/" + args.campaign_tag
+    commands = [
+        ["aws", "s3", "sync", str(results_dir), destination + "/files", "--exclude", "archive/*"],
+        ["aws", "s3", "cp", str(archive_path), destination + "/benchmark_results.tar.gz"],
+    ]
+    for command in commands:
+        append_session(session_log, f"\n===== S3 upload: {command_text(command)} =====")
+        completed = run(command, check=False)
+        append_session(session_log, completed.stdout or "")
+        append_session(session_log, completed.stderr or "")
+        if completed.returncode != 0:
+            raise RuntimeError(f"S3 upload failed: {command_text(command)}")
+    print(f"[S3] Results uploaded to {destination}")
+
+
+def write_service_marker(args: argparse.Namespace, results_dir: Path, status: str, message: str = "") -> None:
+    if not args.service_file:
+        return
+    marker = Path(args.service_file)
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    s3_marker = args.s3_uri.rstrip("/") + "/" + args.campaign_tag if args.s3_uri else ""
+    marker.write_text(
+        "\n".join([
+            f"status={status}",
+            f"campaign_tag={args.campaign_tag}",
+            f"results_dir={results_dir}",
+            f"s3_uri={s3_marker}",
+            f"timestamp={datetime.now(timezone.utc).isoformat()}",
+            f"message={message}",
+        ]) + "\n",
+        encoding="utf-8",
+    )
+
+
+def print_dry_run(args: argparse.Namespace, workloads: list[tuple[str, str]]) -> None:
+    print("DRY RUN: no service, HDFS command, Hive query, Spark job or S3 upload will be started.")
     print(f"Results directory: {args.results_dir}")
     print(f"Campaign tag: {args.campaign_tag}")
     print(f"Datasets: {', '.join(args.datasets)}")
     print(f"Analyses: {', '.join(args.analyses)}")
     print(f"Repetitions: {args.repetitions}")
-    print(f"Technologies: {', '.join(technologies) if technologies else '<none>'}")
+    print(f"Workloads: {', '.join(f'{technology}/{variant}' for technology, variant in workloads) if workloads else '<none>'}")
     print(f"Hive client: {args.hive_client}")
+    print(f"Hive reducer variants: {', '.join(args.hive_reducer_variants)}")
+    print(f"S3 upload: {args.s3_upload}; S3 URI: {args.s3_uri or '<empty>'}")
     print(f"SPARK_DRIVER_MEMORY={os.environ.get('SPARK_DRIVER_MEMORY', '<empty>')}")
     print(f"SPARK_SQL_SHUFFLE_PARTITIONS={os.environ.get('SPARK_SQL_SHUFFLE_PARTITIONS', '<empty>')}")
     print(f"SPARK_SUBMIT_EXTRA_CONF={os.environ.get('SPARK_SUBMIT_EXTRA_CONF', '<empty>')}")
     print(f"CLUSTER_HDFS_OUTPUT_BASE={CLUSTER_HDFS_OUTPUT_BASE}")
     print(f"CLUSTER_HDFS_INPUT_BASE={CLUSTER_HDFS_INPUT_BASE}")
     print("\nPlanned blocks:")
-    for block_index, technology in enumerate(technologies, start=1):
-        print(f"{block_index}. {technology}: verify HDFS/YARN, snapshot, run jobs")
+    for block_index, (technology, variant) in enumerate(workloads, start=1):
+        print(f"{block_index}. {technology}/{variant}: verify HDFS/YARN, snapshot, run jobs")
         for analysis in args.analyses:
             for dataset in args.datasets:
                 for run_index in range(1, args.repetitions + 1):
-                    target = output_path(args.campaign_tag, technology, analysis, dataset, run_index)
+                    target = output_path(args.campaign_tag, technology, variant, analysis, dataset, run_index)
                     if technology == "hive":
                         print(
                             f"   setup {run_index}/{args.repetitions}: "
-                            f"{command_text(prepare_hive_command(args, dataset))}"
+                            f"{command_text(prepare_hive_command(args, dataset, variant))}"
                         )
                     print(
                         f"   run {run_index}/{args.repetitions}: "
-                        f"{command_text(job_command(args, technology, analysis, dataset, target))}"
+                        f"{command_text(job_command(args, technology, variant, analysis, dataset, target))}"
                     )
 
 
@@ -614,12 +742,14 @@ def main() -> None:
     args = parse_args()
     if args.repetitions < 1:
         raise RuntimeError("--repetitions must be at least 1.")
-    technologies = selected_technologies(args)
+    workloads = selected_workloads(args)
     if args.dry_run:
-        print_dry_run(args, technologies)
+        print_dry_run(args, workloads)
         return
-    if not technologies:
-        raise RuntimeError("All technology blocks were skipped.")
+    if not workloads:
+        raise RuntimeError("All workload blocks were skipped.")
+    if args.s3_upload and not args.s3_uri:
+        raise RuntimeError("--s3-upload requires --s3-uri or BENCHMARK_S3_URI.")
 
     results_dir = PROJECT_ROOT / args.results_dir
     results_dir.mkdir(parents=True, exist_ok=True)
@@ -632,40 +762,43 @@ def main() -> None:
     )
 
     runs: list[dict[str, object]] = []
-    for technology in technologies:
-        print(f"\n=== Block: {technology} ===")
-        require_cluster_services()
-        print_block_snapshot(args, session_log, technology)
-        require_cluster_services()
-        for analysis in args.analyses:
-            for dataset in args.datasets:
-                for run_index in range(1, args.repetitions + 1):
-                    row = execute_one(
-                        args,
-                        results_dir,
-                        args.campaign_tag,
-                        technology,
-                        analysis,
-                        dataset,
-                        run_index,
-                    )
-                    runs.append(row)
-                    write_csv(results_dir / "benchmark_runs.csv", RUN_FIELDS, runs)
-                    if row["status"] == "success":
-                        print(
-                            f"[OK] {technology} {analysis} {dataset} run={run_index}/{args.repetitions} "
-                            f"{row['elapsed_seconds_job_time']}s"
+    try:
+        for technology, variant in workloads:
+            print(f"\n=== Block: {technology}/{variant} ===")
+            require_cluster_services()
+            print_block_snapshot(args, session_log, technology, variant)
+            require_cluster_services()
+            for analysis in args.analyses:
+                for dataset in args.datasets:
+                    for run_index in range(1, args.repetitions + 1):
+                        row = execute_one(
+                            args,
+                            results_dir,
+                            args.campaign_tag,
+                            technology,
+                            variant,
+                            analysis,
+                            dataset,
+                            run_index,
                         )
-                    else:
-                        print(
-                            f"[FAIL] {technology} {analysis} {dataset} run={run_index}/{args.repetitions} "
-                            f"{row['elapsed_seconds_job_time']}s log={row['error_log_path']}"
-                        )
+                        runs.append(row)
+                        write_csv(results_dir / "benchmark_runs.csv", RUN_FIELDS, runs)
+                        label = f"{technology}/{variant} {analysis} {dataset} run={run_index}/{args.repetitions}"
+                        if row["status"] == "success":
+                            print(f"[OK] {label} {row['elapsed_seconds_job_time']}s")
+                        else:
+                            print(f"[FAIL] {label} {row['elapsed_seconds_job_time']}s log={row['error_log_path']}")
 
-    summary = summarize(runs)
-    write_csv(results_dir / "benchmark_summary.csv", SUMMARY_FIELDS, summary)
-    create_plots(results_dir, summary, args.analyses)
-    write_report(results_dir, args, technologies, runs, summary)
+        summary = summarize(runs)
+        write_csv(results_dir / "benchmark_summary.csv", SUMMARY_FIELDS, summary)
+        create_plots(results_dir, summary, args.analyses)
+        write_report(results_dir, args, workloads, runs, summary)
+        upload_results_to_s3(args, results_dir, session_log)
+        write_service_marker(args, results_dir, "success")
+    except Exception as exc:
+        write_service_marker(args, results_dir, "failed", str(exc))
+        raise
+
     success_count = sum(row["status"] == "success" for row in runs)
     print("\n=== Campaign summary ===")
     print(f"Total runs: {len(runs)}")
@@ -675,6 +808,8 @@ def main() -> None:
     print(f"Summary CSV: {results_dir / 'benchmark_summary.csv'}")
     print(f"Report: {results_dir / 'benchmark_report.md'}")
     print(f"Logs: {results_dir / 'logs'}")
+    if args.s3_upload:
+        print(f"S3: {args.s3_uri.rstrip('/') + '/' + args.campaign_tag}")
 
 
 if __name__ == "__main__":
