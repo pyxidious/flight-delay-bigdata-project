@@ -1,0 +1,3 @@
+technology,variant,analysis,dataset_label,input_rows,input_bytes_hdfs,successful_runs,failed_runs,mean_seconds,median_seconds,stddev_seconds,min_seconds,max_seconds,best_run_seconds,output_rows,output_part_files_count
+spark_sql,default,analysis_2,14m,14158162,2102362680,3,0,39.3588,35.0049,9.0455,33.3137,49.7579,33.3137,11902,"3,4"
+spark_sql,default,analysis_3,14m,14158162,2102362680,3,0,32.1696,32.0948,0.7374,31.4725,32.9415,31.4725,1738,1

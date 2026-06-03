@@ -1,0 +1,3 @@
+technology,variant,analysis,dataset_label,input_rows,input_bytes_hdfs,successful_runs,failed_runs,mean_seconds,median_seconds,stddev_seconds,min_seconds,max_seconds,best_run_seconds,output_rows,output_part_files_count
+hive,auto,analysis_2,14m,14158162,2102362680,3,0,93.4667,92.7234,1.6247,92.3466,95.3300,92.3466,11902,1
+hive,auto,analysis_3,14m,14158162,2102362680,3,0,126.7384,125.7131,2.1457,125.2977,129.2044,125.2977,1738,1

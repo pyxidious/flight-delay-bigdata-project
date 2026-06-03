@@ -1,0 +1,10 @@
+origin,month,dep_delay_band,flight_count,avg_dep_delay,avg_arr_delay,top_3_causes
+MSP,1,low,7554,-2.5821,-12.5667,1:Delay_nas=384; 2:Delay_carrier=108; 3:Delay_late_aircraft=6
+PVD,1,low,714,-3.4524,-10.0098,1:Delay_nas=38; 2:Delay_late_aircraft=6; 3:Delay_carrier=3
+MIA,1,low,6893,-0.9502,-5.2774,1:Delay_nas=602; 2:Delay_carrier=47; 3:Delay_late_aircraft=20
+TYS,1,low,820,-5.5744,-10.3187,1:Delay_nas=73; 2:Delay_carrier=4
+CLT,1,high,1657,136.478,132.7814,1:Delay_late_aircraft=1046; 2:Delay_carrier=425; 3:Delay_weather=135
+TUL,1,low,980,-3.7684,-5.8764,1:Delay_nas=77; 2:Delay_carrier=18; 3:Delay_late_aircraft=6
+RST,1,low,73,-4.6712,-17.0137,NoCauseAvailable
+LEX,1,low,486,-5.1852,-10.2778,1:Delay_nas=41; 2:Delay_carrier=3; 3:Delay_late_aircraft=3
+LGA,1,medium,1454,32.6651,27.3873,1:Delay_late_aircraft=422; 2:Delay_carrier=349; 3:Delay_nas=146

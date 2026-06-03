@@ -67,3 +67,5 @@ results/output/
 # Local archives
 archive/
 results/benchmark/archive/
+*.zip
+*.tar.gz

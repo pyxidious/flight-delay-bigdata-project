@@ -1,0 +1,10 @@
+origin,month,dep_delay_band,flight_count,avg_dep_delay,avg_arr_delay,top_3_causes
+BGR,1,low,166,-7.4096,-17.7289,1:Delay_nas=9; 2:Delay_carrier=1
+TYS,1,low,743,-5.3378,-10.1226,1:Delay_nas=64; 2:Delay_carrier=4
+VLD,1,low,50,-5.28,-13.0,NoCauseAvailable
+ELP,1,high,64,164.6719,164.8906,1:Delay_late_aircraft=38; 2:Delay_carrier=14; 3:Delay_weather=8
+AMA,1,high,30,173.9,168.5333,1:Delay_late_aircraft=19; 2:Delay_carrier=6; 3:Delay_weather=3
+SMF,1,low,3058,-2.4621,-8.2282,1:Delay_nas=72; 2:Delay_carrier=28; 3:Delay_late_aircraft=3
+LAX,1,high,791,154.0063,147.1874,1:Delay_late_aircraft=378; 2:Delay_carrier=303; 3:Delay_nas=58
+COS,1,low,692,-3.0636,-6.0377,1:Delay_nas=43; 2:Delay_carrier=6; 3:Cancellation_A=1
+ACY,1,medium,23,29.9565,31.6087,1:Delay_nas=9; 2:Delay_late_aircraft=5; 3:Delay_carrier=3

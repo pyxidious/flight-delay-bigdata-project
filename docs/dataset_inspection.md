@@ -1,4 +1,69 @@
-# Dataset Inspection
+# Ispezione Del Dataset / Dataset Inspection
+
+## Italiano
+
+### Sorgente
+
+- Percorso dataset: `data/raw/flight_data_2024.csv`
+- Dimensione file: **1.22 GB**
+- Campione usato per l'ispezione: **10,000 righe**
+
+### Forma
+
+- Righe totali, escluso header: **7,079,081**
+- Colonne totali: **35**
+
+### Colonne
+
+Il dataset grezzo contiene attributi temporali, compagnia aerea, numero volo,
+aeroporti di partenza e destinazione, orari pianificati ed effettivi, ritardi,
+cancellazioni, deviazioni, durata, distanza e cause di ritardo.
+
+### Tipi Inferiti Sul Campione
+
+I tipi inferiti sul campione sono coerenti con la struttura del CSV: attributi
+temporali e flag come interi, ritardi e durate come valori numerici, codici e
+nomi come stringhe.
+
+### Valori Mancanti Sul Campione
+
+La colonna con piu valori mancanti e `cancellation_code`, come atteso per voli
+non cancellati. Alcune colonne operative legate a tempi effettivi e ritardi
+presentano valori mancanti limitati, coerenti con voli cancellati o non
+completati.
+
+### Colonne Candidate Per Le Analisi
+
+Le colonne candidate individuate automaticamente e poi verificate manualmente
+sono:
+
+- compagnia: `op_unique_carrier`
+- aeroporto di partenza: `origin`, `origin_city_name`, `origin_state_nm`
+- aeroporto di destinazione: `dest`, `dest_city_name`, `dest_state_nm`
+- data e mese: `year`, `month`, `day_of_month`, `day_of_week`, `fl_date`
+- ritardi: `dep_delay`, `arr_delay`
+- cancellazioni: `cancelled`, `cancellation_code`
+- deviazioni: `diverted`
+- cause di ritardo: `carrier_delay`, `weather_delay`, `nas_delay`, `security_delay`, `late_aircraft_delay`
+
+### Duplicati E Memoria
+
+- Righe duplicate nel campione: **0**
+- Memoria usata dal campione: **6.61 MB**
+
+### Prime 10 Righe
+
+Le prime 10 righe del dataset grezzo sono riportate nella versione inglese
+seguente, mantenendo la tabella generata automaticamente dallo script di
+ispezione.
+
+### Note
+
+- L'ispezione dei tipi e dei valori mancanti e basata su un campione.
+- Il numero totale di righe e calcolato tramite scansione completa del CSV.
+- Le decisioni finali di pulizia sono documentate in `docs/cleaning_report.md`.
+
+## English
 
 ## Source
 

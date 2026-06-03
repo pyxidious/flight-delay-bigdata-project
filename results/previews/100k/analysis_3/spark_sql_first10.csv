@@ -1,0 +1,10 @@
+origin,airline,total_flights,avg_dep_delay,avg_arr_delay,cancelled_flights,cancellation_rate,airport_avg_dep_delay,dep_delay_diff_from_airport,airport_rank_by_avg_dep_delay
+ABE,9E,12,11.4167,-4.0833,0,0.0,24.7733,-13.3567,1
+ABE,G4,37,12.1622,3.0541,0,0.0,24.7733,-12.6112,2
+ABE,OH,17,23.875,7.625,1,0.058824,24.7733,-0.8983,3
+ABE,OO,10,88.9,69.5,0,0.0,24.7733,64.1267,4
+ABI,MQ,30,-5.9,-5.3667,0,0.0,-5.9,0.0,1
+ABQ,DL,25,-4.24,-5.96,0,0.0,13.3275,-17.5675,1
+ABQ,MQ,5,3.6,0.0,0,0.0,13.3275,-9.7275,2
+ABQ,AS,6,7.0,6.8333,0,0.0,13.3275,-6.3275,3
+ABQ,OO,52,8.7308,4.1346,0,0.0,13.3275,-4.5967,4

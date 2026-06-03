@@ -1,0 +1,109 @@
+# Cluster EMR Repeated Benchmark Report
+
+## Protocol
+
+- Environment: `cluster_emr`.
+- Metric: analytical job invocation plus distributed HDFS output write.
+- Excluded from timer: cleanup, Hive table setup, memory/service checks, HDFS listing, row counting, previews, summaries and plots.
+- Each technology-analysis-dataset combination has `3` runs: `run_type=repeated`, `run_index=1..3`.
+- Output remains distributed. No presentation-only global final sort, `coalesce(1)`, timed preview action or single-file output was introduced.
+- Spark cluster mode: `--master yarn --deploy-mode client`.
+- Hive execution engine is forced to `mr`; EMR's default Tez engine is intentionally not used for the benchmark numbers.
+- Hive reducer policy: `hive.exec.reducers.bytes.per.reducer=256000000`, `hive.exec.reducers.max=1009`; `mapreduce.job.reduces` is not pinned.
+- Hive client: `beeline`.
+- Campaign tag: `cluster_4core_all_datasets_mr_final`.
+- Dataset order: `100k, 500k, 1m, 3m, 7m, 10m, 14m`.
+- Repetitions per combination: `3`.
+- HDFS defaultFS: `hdfs://ip-172-31-86-153.ec2.internal:8020`.
+
+## Block Order And Services
+
+- Selected block order: `hive, spark_sql, spark_core`.
+- HDFS and YARN remain active throughout the campaign.
+- HiveServer2 is not started or stopped by this script; Beeline mode requires it to already be available.
+
+## Spark Configuration
+
+- `SPARK_DRIVER_MEMORY=5g`
+- `SPARK_SQL_SHUFFLE_PARTITIONS=64`
+- `SPARK_SUBMIT_EXTRA_CONF=<empty>`
+
+## YARN Nodes Snapshot
+
+Total Nodes:4<br>         Node-Id	     Node-State	Node-Http-Address	Number-of-Running-Containers<br>ip-172-31-82-209.ec2.internal:8041	        RUNNING	ip-172-31-82-209.ec2.internal:8042	                           0<br>ip-172-31-92-188.ec2.internal:8041	        RUNNING	ip-172-31-92-188.ec2.internal:8042	                           0<br>ip-172-31-89-62.ec2.internal:8041	        RUNNING	ip-172-31-89-62.ec2.internal:8042	                           0<br>ip-172-31-89-88.ec2.internal:8041	        RUNNING	ip-172-31-89-88.ec2.internal:8042	                           0
+
+## Results
+
+| technology | analysis | dataset_label | input_rows | input_bytes_hdfs | successful_runs | failed_runs | mean_seconds | median_seconds | stddev_seconds | min_seconds | max_seconds | best_run_seconds | output_rows | output_part_files_count |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| hive | analysis_1 | 100k | 100000 | 14762421 | 3 | 0 | 30.3338 | 30.4215 | 1.3728 | 28.9192 | 31.6606 | 28.9192 | 1485 | 1 |
+| hive | analysis_1 | 500k | 500000 | 73794240 | 3 | 0 | 33.0027 | 33.3184 | 0.8001 | 32.0929 | 33.5968 | 32.0929 | 1564 | 1 |
+| hive | analysis_1 | 1m | 1000000 | 147935473 | 3 | 0 | 31.1149 | 31.4299 | 0.5772 | 30.4488 | 31.4661 | 30.4488 | 1586 | 1 |
+| hive | analysis_1 | 3m | 3000000 | 444331337 | 3 | 0 | 39.4042 | 39.5315 | 1.4849 | 37.8598 | 40.8214 | 37.8598 | 1682 | 2 |
+| hive | analysis_1 | 7m | 7079081 | 1051181497 | 3 | 0 | 42.5852 | 42.6799 | 0.9101 | 41.6315 | 43.4442 | 41.6315 | 1738 | 5 |
+| hive | analysis_1 | 10m | 10000000 | 1483850277 | 3 | 0 | 45.7051 | 45.7886 | 1.1603 | 44.5053 | 46.8213 | 44.5053 | 1738 | 6 |
+| hive | analysis_1 | 14m | 14158162 | 2102362680 | 3 | 0 | 53.7031 | 53.6754 | 1.1041 | 52.6131 | 54.8207 | 52.6131 | 1738 | 9 |
+| hive | analysis_2 | 100k | 100000 | 14762421 | 3 | 0 | 77.3737 | 77.8443 | 1.0393 | 76.1824 | 78.0945 | 76.1824 | 847 | 1 |
+| hive | analysis_2 | 500k | 500000 | 73794240 | 3 | 0 | 78.6269 | 78.8127 | 1.1531 | 77.3921 | 79.6758 | 77.3921 | 992 | 1 |
+| hive | analysis_2 | 1m | 1000000 | 147935473 | 3 | 0 | 76.3891 | 75.8404 | 2.5028 | 74.2062 | 79.1207 | 74.2062 | 1959 | 1 |
+| hive | analysis_2 | 3m | 3000000 | 444331337 | 3 | 0 | 85.3158 | 85.6468 | 2.4750 | 82.6920 | 87.6087 | 82.6920 | 5830 | 1 |
+| hive | analysis_2 | 7m | 7079081 | 1051181497 | 3 | 0 | 88.0749 | 87.1356 | 2.3721 | 86.3163 | 90.7728 | 86.3163 | 11902 | 1 |
+| hive | analysis_2 | 10m | 10000000 | 1483850277 | 3 | 0 | 96.8049 | 96.7182 | 1.2799 | 95.5706 | 98.1260 | 95.5706 | 11902 | 1 |
+| hive | analysis_2 | 14m | 14158162 | 2102362680 | 3 | 0 | 111.0415 | 110.8252 | 0.8149 | 110.3566 | 111.9428 | 110.3566 | 11902 | 1 |
+| hive | analysis_3 | 100k | 100000 | 14762421 | 3 | 0 | 99.5253 | 98.9292 | 4.5314 | 95.3214 | 104.3252 | 95.3214 | 1485 | 1 |
+| hive | analysis_3 | 500k | 500000 | 73794240 | 3 | 0 | 104.9253 | 104.3031 | 1.2144 | 104.1481 | 106.3247 | 104.1481 | 1564 | 1 |
+| hive | analysis_3 | 1m | 1000000 | 147935473 | 3 | 0 | 100.1336 | 100.1381 | 0.6789 | 99.4525 | 100.8102 | 99.4525 | 1586 | 1 |
+| hive | analysis_3 | 3m | 3000000 | 444331337 | 3 | 0 | 112.4930 | 112.4358 | 0.6613 | 111.8621 | 113.1810 | 111.8621 | 1682 | 1 |
+| hive | analysis_3 | 7m | 7079081 | 1051181497 | 3 | 0 | 125.0725 | 125.2738 | 1.4661 | 123.5162 | 126.4275 | 123.5162 | 1738 | 1 |
+| hive | analysis_3 | 10m | 10000000 | 1483850277 | 3 | 0 | 133.2709 | 132.9144 | 1.5216 | 131.9591 | 134.9391 | 131.9591 | 1738 | 1 |
+| hive | analysis_3 | 14m | 14158162 | 2102362680 | 3 | 0 | 158.8971 | 158.8330 | 2.8668 | 156.0629 | 161.7954 | 156.0629 | 1738 | 1 |
+| spark_sql | analysis_1 | 100k | 100000 | 14762421 | 3 | 0 | 25.3906 | 25.2587 | 0.2889 | 25.1911 | 25.7219 | 25.1911 | 1485 | 1 |
+| spark_sql | analysis_1 | 500k | 500000 | 73794240 | 3 | 0 | 27.4809 | 27.4564 | 0.5188 | 26.9747 | 28.0115 | 26.9747 | 1564 | 1 |
+| spark_sql | analysis_1 | 1m | 1000000 | 147935473 | 3 | 0 | 27.3701 | 27.2232 | 0.3700 | 27.0961 | 27.7910 | 27.0961 | 1586 | 1 |
+| spark_sql | analysis_1 | 3m | 3000000 | 444331337 | 3 | 0 | 30.4803 | 30.8123 | 0.6625 | 29.7175 | 30.9112 | 29.7175 | 1682 | 1 |
+| spark_sql | analysis_1 | 7m | 7079081 | 1051181497 | 3 | 0 | 31.6553 | 31.2931 | 0.6474 | 31.2701 | 32.4028 | 31.2701 | 1738 | 1,3 |
+| spark_sql | analysis_1 | 10m | 10000000 | 1483850277 | 3 | 0 | 34.4099 | 34.0577 | 1.1166 | 33.5118 | 35.6601 | 33.5118 | 1738 | 2,3 |
+| spark_sql | analysis_1 | 14m | 14158162 | 2102362680 | 3 | 0 | 36.1283 | 35.5989 | 1.1874 | 35.2977 | 37.4884 | 35.2977 | 1738 | 3 |
+| spark_sql | analysis_2 | 100k | 100000 | 14762421 | 3 | 0 | 27.8220 | 27.6717 | 0.4162 | 27.5018 | 28.2925 | 27.5018 | 847 | 1 |
+| spark_sql | analysis_2 | 500k | 500000 | 73794240 | 3 | 0 | 29.2686 | 28.8985 | 1.0714 | 28.4313 | 30.4760 | 28.4313 | 992 | 1 |
+| spark_sql | analysis_2 | 1m | 1000000 | 147935473 | 3 | 0 | 29.5786 | 29.7648 | 1.2932 | 28.2024 | 30.7687 | 28.2024 | 1959 | 1 |
+| spark_sql | analysis_2 | 3m | 3000000 | 444331337 | 3 | 0 | 31.5656 | 30.8673 | 1.5210 | 30.5191 | 33.3103 | 30.5191 | 5830 | 1 |
+| spark_sql | analysis_2 | 7m | 7079081 | 1051181497 | 3 | 0 | 33.3025 | 33.1024 | 2.1828 | 31.2267 | 35.5785 | 31.2267 | 11902 | 1,2 |
+| spark_sql | analysis_2 | 10m | 10000000 | 1483850277 | 3 | 0 | 34.9283 | 35.2121 | 1.3092 | 33.5005 | 36.0723 | 33.5005 | 11902 | 2 |
+| spark_sql | analysis_2 | 14m | 14158162 | 2102362680 | 3 | 0 | 35.4859 | 34.4530 | 1.8723 | 34.3576 | 37.6472 | 34.3576 | 11902 | 3 |
+| spark_sql | analysis_3 | 100k | 100000 | 14762421 | 3 | 0 | 25.9721 | 25.7190 | 0.5269 | 25.6196 | 26.5778 | 25.6196 | 1485 | 1 |
+| spark_sql | analysis_3 | 500k | 500000 | 73794240 | 3 | 0 | 27.3322 | 27.2529 | 1.1098 | 26.2641 | 28.4795 | 26.2641 | 1564 | 1 |
+| spark_sql | analysis_3 | 1m | 1000000 | 147935473 | 3 | 0 | 27.4184 | 26.9286 | 1.0192 | 26.7366 | 28.5900 | 26.7366 | 1586 | 1 |
+| spark_sql | analysis_3 | 3m | 3000000 | 444331337 | 3 | 0 | 28.7923 | 28.9211 | 0.3104 | 28.4382 | 29.0175 | 28.4382 | 1682 | 1 |
+| spark_sql | analysis_3 | 7m | 7079081 | 1051181497 | 3 | 0 | 30.9592 | 30.8550 | 0.2321 | 30.7975 | 31.2251 | 30.7975 | 1738 | 1 |
+| spark_sql | analysis_3 | 10m | 10000000 | 1483850277 | 3 | 0 | 31.8103 | 31.3677 | 0.9640 | 31.1471 | 32.9162 | 31.1471 | 1738 | 1 |
+| spark_sql | analysis_3 | 14m | 14158162 | 2102362680 | 3 | 0 | 34.2080 | 34.0035 | 0.3592 | 33.9978 | 34.6227 | 33.9978 | 1738 | 1 |
+| spark_core | analysis_1 | 100k | 100000 | 14762421 | 3 | 0 | 28.5090 | 29.0851 | 1.2434 | 27.0820 | 29.3598 | 27.0820 | 1485 | 18 |
+| spark_core | analysis_1 | 500k | 500000 | 73794240 | 3 | 0 | 29.1103 | 29.4484 | 0.6853 | 28.3216 | 29.5608 | 28.3216 | 1564 | 18 |
+| spark_core | analysis_1 | 1m | 1000000 | 147935473 | 3 | 0 | 31.0317 | 31.0350 | 0.3880 | 30.6421 | 31.4180 | 30.6421 | 1586 | 18 |
+| spark_core | analysis_1 | 3m | 3000000 | 444331337 | 3 | 0 | 34.2792 | 34.1052 | 0.7561 | 33.6253 | 35.1071 | 33.6253 | 1682 | 20 |
+| spark_core | analysis_1 | 7m | 7079081 | 1051181497 | 3 | 0 | 40.5516 | 40.5641 | 0.1399 | 40.4059 | 40.6848 | 40.4059 | 1738 | 24 |
+| spark_core | analysis_1 | 10m | 10000000 | 1483850277 | 3 | 0 | 52.2510 | 52.3445 | 1.6981 | 50.5081 | 53.9005 | 50.5081 | 1738 | 27 |
+| spark_core | analysis_1 | 14m | 14158162 | 2102362680 | 3 | 0 | 55.8100 | 55.6971 | 1.6180 | 54.2514 | 57.4815 | 54.2514 | 1738 | 32 |
+| spark_core | analysis_2 | 100k | 100000 | 14762421 | 3 | 0 | 26.9860 | 26.9651 | 0.4934 | 26.5034 | 27.4896 | 26.5034 | 847 | 18 |
+| spark_core | analysis_2 | 500k | 500000 | 73794240 | 3 | 0 | 29.0964 | 28.5320 | 1.0175 | 28.4861 | 30.2710 | 28.4861 | 992 | 18 |
+| spark_core | analysis_2 | 1m | 1000000 | 147935473 | 3 | 0 | 33.2978 | 33.1858 | 1.8297 | 31.5267 | 35.1809 | 31.5267 | 1959 | 18 |
+| spark_core | analysis_2 | 3m | 3000000 | 444331337 | 3 | 0 | 37.6156 | 37.4718 | 2.5344 | 35.1561 | 40.2188 | 35.1561 | 5830 | 20 |
+| spark_core | analysis_2 | 7m | 7079081 | 1051181497 | 3 | 0 | 43.0029 | 43.2189 | 0.7205 | 42.1992 | 43.5907 | 42.1992 | 11902 | 24 |
+| spark_core | analysis_2 | 10m | 10000000 | 1483850277 | 3 | 0 | 53.3953 | 54.5124 | 2.2806 | 50.7715 | 54.9019 | 50.7715 | 11902 | 27 |
+| spark_core | analysis_2 | 14m | 14158162 | 2102362680 | 3 | 0 | 59.3785 | 59.2673 | 0.4741 | 58.9698 | 59.8983 | 58.9698 | 11902 | 32 |
+| spark_core | analysis_3 | 100k | 100000 | 14762421 | 3 | 0 | 28.3268 | 28.5606 | 0.4863 | 27.7678 | 28.6521 | 27.7678 | 1485 | 20 |
+| spark_core | analysis_3 | 500k | 500000 | 73794240 | 3 | 0 | 29.3366 | 29.3444 | 0.0618 | 29.2713 | 29.3942 | 29.2713 | 1564 | 20 |
+| spark_core | analysis_3 | 1m | 1000000 | 147935473 | 3 | 0 | 32.7725 | 32.6162 | 0.6977 | 32.1662 | 33.5350 | 32.1662 | 1586 | 20 |
+| spark_core | analysis_3 | 3m | 3000000 | 444331337 | 3 | 0 | 34.1907 | 34.1740 | 0.7131 | 33.4861 | 34.9120 | 33.4861 | 1682 | 24 |
+| spark_core | analysis_3 | 7m | 7079081 | 1051181497 | 3 | 0 | 37.1637 | 36.9505 | 1.3795 | 35.9032 | 38.6373 | 35.9032 | 1738 | 32 |
+| spark_core | analysis_3 | 10m | 10000000 | 1483850277 | 3 | 0 | 43.8484 | 44.4875 | 3.3842 | 40.1903 | 46.8675 | 40.1903 | 1738 | 38 |
+| spark_core | analysis_3 | 14m | 14158162 | 2102362680 | 3 | 0 | 45.7502 | 45.4306 | 0.6469 | 45.3252 | 46.4947 | 45.3252 | 1738 | 48 |
+
+## Failures
+
+No failed runs were recorded.
+
+## Methodological Note
+
+Local and cluster topologies are intentionally different. The comparison is valid as a context comparison because the scripts, analyses, dataset semantics, distributed-output policy and timer boundaries are kept aligned.

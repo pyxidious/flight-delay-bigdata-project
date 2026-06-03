@@ -1,0 +1,1 @@
+Plot generation skipped because matplotlib/pandas is unavailable: No module named 'PIL'

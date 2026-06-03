@@ -1,4 +1,50 @@
-# Cleaning Report
+# Report Di Pulizia / Cleaning Report
+
+## Italiano
+
+### Input E Output
+
+- Dataset grezzo: `data/raw/flight_data_2024.csv`
+- CSV pulito: `data/cleaned/flights_clean.csv`
+- Parquet pulito: `data/cleaned/flights_clean.parquet`
+
+### Strategia Di Pulizia
+
+Il processo di pulizia applica le seguenti operazioni:
+
+1. Selezione delle sole colonne rilevanti per le analisi richieste.
+2. Rinomina di `op_unique_carrier` in `airline` per maggiore leggibilita.
+3. Normalizzazione dei codici compagnia e aeroporto in stringhe maiuscole.
+4. Creazione della colonna `route` come `origin-dest`.
+5. Creazione di `is_completed_flight` per identificare voli non cancellati, non deviati e con ritardi validi.
+6. Creazione di `dep_delay_band` con tre fasce: low, medium e high.
+7. Normalizzazione di `cancellation_code`, usando `NotCancelled` per voli non cancellati e `Unknown` per voli cancellati senza codice.
+8. Creazione di `main_delay_cause` dalla maggiore colonna disponibile tra le cause di ritardo.
+9. Salvataggio del dataset pulito sia in CSV sia in Parquet.
+
+### Definizione Delle Fasce Di Ritardo
+
+| Fascia | Regola |
+|---|---|
+| low | `dep_delay < 15` |
+| medium | `15 <= dep_delay <= 60` |
+| high | `dep_delay > 60` |
+| unknown | `dep_delay` mancante |
+
+### Conteggio Righe
+
+- Righe input processate: **7,079,081**
+- Righe output scritte: **7,079,081**
+- Righe rimosse per chiavi obbligatorie mancanti: **0**
+
+### Note Per Le Analisi Successive
+
+- Le medie dei ritardi devono essere calcolate sulle righe con `is_completed_flight = 1`.
+- I tassi di cancellazione devono essere calcolati su tutte le righe.
+- `main_delay_cause` deriva dalle colonne delle cause di ritardo ed e utile soprattutto per i report sulle frequenze delle cause.
+- `cancellation_code` e significativo soprattutto quando `cancelled = 1`.
+
+## English
 
 ## Input and output
 

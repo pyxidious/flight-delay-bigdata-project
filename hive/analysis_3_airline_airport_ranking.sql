@@ -66,7 +66,10 @@ ranked AS (
         dep_delay_diff_from_airport,
         ROW_NUMBER() OVER (
             PARTITION BY origin
-            ORDER BY avg_dep_delay ASC, airline ASC
+            ORDER BY
+                CASE WHEN avg_dep_delay IS NULL THEN 1 ELSE 0 END ASC,
+                avg_dep_delay ASC,
+                airline ASC
         ) AS airport_rank_by_avg_dep_delay
     FROM compared
 )

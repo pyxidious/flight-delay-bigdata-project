@@ -1,0 +1,10 @@
+origin,month,dep_delay_band,flight_count,avg_dep_delay,avg_arr_delay,top_3_causes
+JFK,1,low,7233,-2.817,-14.054,1:Delay_nas=584; 2:Delay_carrier=36; 3:Delay_late_aircraft=3
+MSP,1,low,7554,-2.5821,-12.5667,1:Delay_nas=384; 2:Delay_carrier=108; 3:Delay_late_aircraft=6
+DTW,1,low,6780,-2.0569,-7.1532,1:Delay_nas=720; 2:Delay_carrier=86; 3:Cancellation_B=9
+CLE,1,low,2278,-4.0097,-10.0902,1:Delay_nas=160; 2:Delay_carrier=9; 3:Cancellation_A=1
+GRR,1,low,1098,-4.2177,-8.515,1:Delay_nas=137; 2:Delay_carrier=8; 3:Delay_late_aircraft=6
+TLH,1,low,390,-3.9256,-6.2699,1:Delay_nas=19; 2:Delay_late_aircraft=3
+CLT,1,low,11805,-1.9366,-6.7901,1:Delay_nas=637; 2:Delay_carrier=49; 3:Delay_late_aircraft=29
+PVD,1,low,714,-3.4524,-10.0098,1:Delay_nas=38; 2:Delay_late_aircraft=6; 3:Delay_carrier=3
+MIA,1,low,6893,-0.9502,-5.2774,1:Delay_nas=602; 2:Delay_carrier=47; 3:Delay_late_aircraft=20

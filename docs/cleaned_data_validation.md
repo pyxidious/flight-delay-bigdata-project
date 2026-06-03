@@ -1,4 +1,109 @@
-# Cleaned Data Validation
+# Validazione Del Dataset Pulito / Cleaned Data Validation
+
+## Italiano
+
+### Forma
+
+- Righe: **7,079,081**
+- Colonne: **26**
+
+### Cardinalita
+
+- Compagnie aeree: **15**
+- Aeroporti di partenza: **348**
+- Aeroporti di destinazione: **348**
+- Rotte: **6,805**
+
+### Colonne
+
+| colonna             |
+|:--------------------|
+| year                |
+| month               |
+| day_of_month        |
+| day_of_week         |
+| fl_date             |
+| airline             |
+| origin              |
+| origin_city_name    |
+| origin_state_nm     |
+| dest                |
+| dest_city_name      |
+| dest_state_nm       |
+| route               |
+| dep_delay           |
+| arr_delay           |
+| dep_delay_band      |
+| cancelled           |
+| cancellation_code   |
+| diverted            |
+| is_completed_flight |
+| carrier_delay       |
+| weather_delay       |
+| nas_delay           |
+| security_delay      |
+| late_aircraft_delay |
+| main_delay_cause    |
+
+### Valori Mancanti
+
+Le uniche colonne con valori mancanti residui sono `arr_delay` e `dep_delay`,
+coerentemente con la presenza di voli cancellati o non completati. Le colonne
+obbligatorie e quelle derivate usate nelle analisi non presentano valori
+mancanti.
+
+| colonna   | null_count | null_percentage |
+|:----------|-----------:|----------------:|
+| arr_delay | 113814 | 1.6078 |
+| dep_delay | 92970 | 1.3133 |
+
+### Fasce Di Ritardo In Partenza
+
+| dep_delay_band | count | percentage |
+|:---------------|------:|-----------:|
+| low | 5542963 | 78.3006 |
+| medium | 934921 | 13.2068 |
+| high | 508227 | 7.1793 |
+| unknown | 92970 | 1.3133 |
+
+### Stato Dei Voli
+
+| metrica | count | percentage |
+|:--------|------:|-----------:|
+| completed_flights | 6965267 | 98.3922 |
+| cancelled_flights | 96315 | 1.3606 |
+| diverted_flights | 17499 | 0.2472 |
+
+### Statistiche Dei Ritardi Sui Voli Completati
+
+| metrica | count | mean | std | min | 25% | 50% | 75% | max |
+|:--------|------:|-----:|----:|----:|----:|----:|----:|----:|
+| dep_delay | 6.96527e+06 | 12.5892 | 55.8275 | -96 | -6 | -2 | 9 | 3777 |
+| arr_delay | 6.96527e+06 | 7.09825 | 57.9913 | -126 | -15 | -6 | 9 | 3803 |
+
+### Codici Di Cancellazione
+
+| cancellation_code | count | percentage |
+|:------------------|------:|-----------:|
+| NotCancelled | 6982766 | 98.6394 |
+| B | 53605 | 0.7572 |
+| A | 30926 | 0.4369 |
+| C | 11780 | 0.1664 |
+| D | 4 | 0.0001 |
+
+### Cause Principali Di Ritardo
+
+| main_delay_cause | count | percentage |
+|:-----------------|------:|-----------:|
+| NoDelayCause | 5532796 | 78.157 |
+| late_aircraft | 571757 | 8.0767 |
+| carrier | 450784 | 6.3678 |
+| nas | 369325 | 5.2171 |
+| Cancelled | 96315 | 1.3606 |
+| weather | 54406 | 0.7685 |
+| security | 3698 | 0.0522 |
+
+## English
 
 ## Shape
 

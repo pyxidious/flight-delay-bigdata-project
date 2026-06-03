@@ -131,7 +131,7 @@ def rank_airlines(item):
     ordered = sorted(
         airlines,
         key=lambda values: (
-            values[2] is not None,
+            values[2] is None,
             values[2] if values[2] is not None else 0.0,
             values[0],
         ),

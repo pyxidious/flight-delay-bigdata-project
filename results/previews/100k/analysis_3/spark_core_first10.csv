@@ -1,0 +1,10 @@
+origin,airline,total_flights,avg_dep_delay,avg_arr_delay,cancelled_flights,cancellation_rate,airport_avg_dep_delay,dep_delay_diff_from_airport,airport_rank_by_avg_dep_delay
+HPN,OO,4,-4.5,-20.75,0,0.0,17.5978,-22.0978,1
+HPN,OH,40,-1.475,-14.475,0,0.0,17.5978,-19.0728,2
+HPN,MQ,22,5.0,-2.8182,0,0.0,17.5978,-12.5978,3
+HPN,B6,82,13.4756,13.0,0,0.0,17.5978,-4.1222,4
+HPN,YX,3,16.3333,-3.6667,0,0.0,17.5978,-1.2645,5
+HPN,DL,24,46.2917,36.4583,0,0.0,17.5978,28.6938,6
+HPN,9E,9,104.4444,88.7778,0,0.0,17.5978,86.8466,7
+BQN,UA,5,-8.0,-15.2,0,0.0,6.1786,-14.1786,1
+BQN,F9,17,-2.0,2.7647,0,0.0,6.1786,-8.1786,2
