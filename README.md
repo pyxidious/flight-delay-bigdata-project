@@ -83,6 +83,12 @@ bash scripts/hdfs/check_hdfs.sh
 
 ### Benchmark
 
+Prima di eseguire il benchmark, inizializzare il setup locale di Hive:
+
+```bash
+bash scripts/hive/init_hive_local.sh
+```
+
 L'unico entrypoint ufficiale del benchmark locale e:
 
 ```bash
@@ -317,6 +323,12 @@ bash scripts/hdfs/check_hdfs.sh
 ```
 
 ### Benchmark
+
+Before running the benchmark, initialize the local Hive setup:
+
+```bash
+bash scripts/hive/init_hive_local.sh
+```
 
 The only official local benchmark entrypoint is:
 
